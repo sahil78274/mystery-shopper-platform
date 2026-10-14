@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Mystery Shopper Platform"
+description = "An admin platform for managing retail stores, shopper profiles and verification, questionnaires, and mystery-shopper visit tasks with live dashboard metrics."
+version = "1.0.0"
+id = "artifacts/mystery-shopper"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 19040
+
+[services.development]
+run = "pnpm --filter @workspace/mystery-shopper run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/mystery-shopper", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/mystery-shopper/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19040"
+BASE_PATH = "/"

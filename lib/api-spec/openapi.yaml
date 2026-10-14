@@ -3,13 +3,23 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Mystery shopper management API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: dashboard
+    description: Admin dashboard metrics
+  - name: stores
+    description: Store management
+  - name: shoppers
+    description: Shopper management and verification
+  - name: tasks
+    description: Visit task management
+  - name: questionnaires
+    description: Questionnaire management
 paths:
   /healthz:
     get:
@@ -24,6 +34,333 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /dashboard:
+    get:
+      operationId: getDashboard
+      tags: [dashboard]
+      summary: Get admin dashboard metrics
+      responses:
+        "200":
+          description: Dashboard metrics and recent activity
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dashboard"
+  /stores:
+    get:
+      operationId: getStores
+      tags: [stores]
+      summary: List stores
+      parameters:
+        - name: search
+          in: query
+          schema: { type: string }
+        - name: region
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { $ref: "#/components/schemas/StoreStatus" }
+      responses:
+        "200":
+          description: Store list
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Store" }
+    post:
+      operationId: createStore
+      tags: [stores]
+      summary: Create a store
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StoreInput" }
+      responses:
+        "201":
+          description: Created store
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Store" }
+        "409": { description: Store code already exists }
+  /stores/{storeId}:
+    parameters:
+      - name: storeId
+        in: path
+        required: true
+        schema: { type: integer }
+    get:
+      operationId: getStore
+      tags: [stores]
+      summary: Get store details
+      responses:
+        "200":
+          description: Store details
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Store" }
+        "404": { description: Store not found }
+    patch:
+      operationId: updateStore
+      tags: [stores]
+      summary: Update a store
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StoreUpdate" }
+      responses:
+        "200":
+          description: Updated store
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Store" }
+        "404": { description: Store not found }
+        "409": { description: Store code already exists }
+    delete:
+      operationId: deleteStore
+      tags: [stores]
+      summary: Delete a store
+      responses:
+        "204": { description: Store deleted }
+        "404": { description: Store not found }
+        "409": { description: Store has assigned tasks }
+  /shoppers:
+    get:
+      operationId: getShoppers
+      tags: [shoppers]
+      summary: List mystery shoppers
+      parameters:
+        - name: search
+          in: query
+          schema: { type: string }
+        - name: verificationStatus
+          in: query
+          schema: { $ref: "#/components/schemas/VerificationStatus" }
+        - name: accountStatus
+          in: query
+          schema: { $ref: "#/components/schemas/AccountStatus" }
+      responses:
+        "200":
+          description: Shopper list
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Shopper" }
+    post:
+      operationId: createShopper
+      tags: [shoppers]
+      summary: Register a mystery shopper
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ShopperInput" }
+      responses:
+        "201":
+          description: Created shopper
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Shopper" }
+        "409": { description: Email already exists }
+  /shoppers/{shopperId}:
+    parameters:
+      - name: shopperId
+        in: path
+        required: true
+        schema: { type: integer }
+    get:
+      operationId: getShopper
+      tags: [shoppers]
+      summary: Get shopper details
+      responses:
+        "200":
+          description: Shopper details
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Shopper" }
+        "404": { description: Shopper not found }
+    patch:
+      operationId: updateShopper
+      tags: [shoppers]
+      summary: Update shopper profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ShopperUpdate" }
+      responses:
+        "200":
+          description: Updated shopper
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Shopper" }
+        "404": { description: Shopper not found }
+        "409": { description: Email already exists }
+  /shoppers/{shopperId}/verification:
+    post:
+      operationId: decideShopperVerification
+      tags: [shoppers]
+      summary: Approve or reject a shopper
+      parameters:
+        - name: shopperId
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/VerificationDecisionInput" }
+      responses:
+        "200":
+          description: Recorded verification decision
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Shopper" }
+        "404": { description: Shopper not found }
+  /tasks:
+    get:
+      operationId: getTasks
+      tags: [tasks]
+      summary: List visit tasks
+      parameters:
+        - name: search
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { $ref: "#/components/schemas/TaskStatus" }
+      responses:
+        "200":
+          description: Task list
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Task" }
+    post:
+      operationId: createTask
+      tags: [tasks]
+      summary: Create and optionally assign a visit task
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TaskInput" }
+      responses:
+        "201":
+          description: Created task
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Task" }
+        "400": { description: Invalid dates or ineligible shopper assignment }
+        "404": { description: Store or shopper not found }
+  /tasks/{taskId}:
+    parameters:
+      - name: taskId
+        in: path
+        required: true
+        schema: { type: integer }
+    get:
+      operationId: getTask
+      tags: [tasks]
+      summary: Get task details
+      responses:
+        "200":
+          description: Task details
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Task" }
+        "404": { description: Task not found }
+    patch:
+      operationId: updateTask
+      tags: [tasks]
+      summary: Update a task
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TaskUpdate" }
+      responses:
+        "200":
+          description: Updated task
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Task" }
+        "400": { description: Invalid dates or ineligible shopper assignment }
+        "404": { description: Task not found }
+  /questionnaires:
+    get:
+      operationId: getQuestionnaires
+      tags: [questionnaires]
+      summary: List questionnaires
+      parameters:
+        - name: search
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { $ref: "#/components/schemas/QuestionnaireStatus" }
+      responses:
+        "200":
+          description: Questionnaire list
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Questionnaire" }
+    post:
+      operationId: createQuestionnaire
+      tags: [questionnaires]
+      summary: Create questionnaire with questions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/QuestionnaireInput" }
+      responses:
+        "201":
+          description: Created questionnaire
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Questionnaire" }
+  /questionnaires/{questionnaireId}:
+    parameters:
+      - name: questionnaireId
+        in: path
+        required: true
+        schema: { type: integer }
+    get:
+      operationId: getQuestionnaire
+      tags: [questionnaires]
+      summary: Get questionnaire details
+      responses:
+        "200":
+          description: Questionnaire with questions
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Questionnaire" }
+        "404": { description: Questionnaire not found }
+    patch:
+      operationId: updateQuestionnaire
+      tags: [questionnaires]
+      summary: Update questionnaire and questions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/QuestionnaireUpdate" }
+      responses:
+        "200":
+          description: Updated questionnaire
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Questionnaire" }
+        "404": { description: Questionnaire not found }
 components:
   schemas:
     HealthStatus:
@@ -33,4 +370,238 @@ components:
           type: string
       required:
         - status
+    Error:
+      type: object
+      properties:
+        error: { type: string }
+      required: [error]
+    StoreStatus:
+      type: string
+      enum: [active, inactive]
+    VerificationStatus:
+      type: string
+      enum: [pending, verified, rejected]
+    AccountStatus:
+      type: string
+      enum: [active, inactive]
+    TaskStatus:
+      type: string
+      enum: [draft, assigned, in_progress, submitted, approved, rejected, cancelled]
+    TaskPriority:
+      type: string
+      enum: [low, medium, high, urgent]
+    QuestionnaireStatus:
+      type: string
+      enum: [active, inactive]
+    QuestionType:
+      type: string
+      enum: [text, single_choice, yes_no, rating]
+    Store:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        code: { type: string }
+        brandName: { type: string }
+        region: { type: string }
+        city: { type: string }
+        address: { type: string }
+        contactPerson: { type: ["string", "null"] }
+        contactPhone: { type: ["string", "null"] }
+        status: { $ref: "#/components/schemas/StoreStatus" }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+      required: [id, name, code, brandName, region, city, address, contactPerson, contactPhone, status, createdAt, updatedAt]
+    StoreInput:
+      type: object
+      properties:
+        name: { type: string, minLength: 1 }
+        code: { type: string, minLength: 1 }
+        brandName: { type: string, minLength: 1 }
+        region: { type: string, minLength: 1 }
+        city: { type: string, minLength: 1 }
+        address: { type: string, minLength: 1 }
+        contactPerson: { type: ["string", "null"] }
+        contactPhone: { type: ["string", "null"] }
+        status: { $ref: "#/components/schemas/StoreStatus" }
+      required: [name, code, brandName, region, city, address, status]
+    StoreUpdate:
+      type: object
+      properties:
+        name: { type: string, minLength: 1 }
+        code: { type: string, minLength: 1 }
+        brandName: { type: string, minLength: 1 }
+        region: { type: string, minLength: 1 }
+        city: { type: string, minLength: 1 }
+        address: { type: string, minLength: 1 }
+        contactPerson: { type: ["string", "null"] }
+        contactPhone: { type: ["string", "null"] }
+        status: { $ref: "#/components/schemas/StoreStatus" }
+    Shopper:
+      type: object
+      properties:
+        id: { type: integer }
+        fullName: { type: string }
+        email: { type: string, format: email }
+        phone: { type: string }
+        city: { type: string }
+        experience: { type: integer }
+        verificationStatus: { $ref: "#/components/schemas/VerificationStatus" }
+        accountStatus: { $ref: "#/components/schemas/AccountStatus" }
+        decisionReason: { type: ["string", "null"] }
+        decisionAt: { type: ["string", "null"], format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+      required: [id, fullName, email, phone, city, experience, verificationStatus, accountStatus, decisionReason, decisionAt, createdAt, updatedAt]
+    ShopperInput:
+      type: object
+      properties:
+        fullName: { type: string, minLength: 1 }
+        email: { type: string, format: email }
+        phone: { type: string, minLength: 1 }
+        city: { type: string, minLength: 1 }
+        experience: { type: integer, minimum: 0 }
+        verificationStatus: { $ref: "#/components/schemas/VerificationStatus" }
+        accountStatus: { $ref: "#/components/schemas/AccountStatus" }
+      required: [fullName, email, phone, city, experience]
+    ShopperUpdate:
+      type: object
+      properties:
+        fullName: { type: string, minLength: 1 }
+        email: { type: string, format: email }
+        phone: { type: string, minLength: 1 }
+        city: { type: string, minLength: 1 }
+        experience: { type: integer, minimum: 0 }
+        accountStatus: { $ref: "#/components/schemas/AccountStatus" }
+    VerificationDecisionInput:
+      type: object
+      properties:
+        verificationStatus:
+          type: string
+          enum: [verified, rejected]
+        reason: { type: ["string", "null"] }
+      required: [verificationStatus]
+    Task:
+      type: object
+      properties:
+        id: { type: integer }
+        storeId: { type: integer }
+        shopperId: { type: ["integer", "null"] }
+        questionnaireId: { type: ["integer", "null"] }
+        visitDate: { type: string, format: date }
+        dueDate: { type: string, format: date }
+        instructions: { type: string }
+        priority: { $ref: "#/components/schemas/TaskPriority" }
+        status: { $ref: "#/components/schemas/TaskStatus" }
+        storeName: { type: string }
+        storeCode: { type: string }
+        shopperName: { type: ["string", "null"] }
+        questionnaireTitle: { type: ["string", "null"] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+      required: [id, storeId, shopperId, questionnaireId, visitDate, dueDate, instructions, priority, status, storeName, storeCode, shopperName, questionnaireTitle, createdAt, updatedAt]
+    TaskInput:
+      type: object
+      properties:
+        storeId: { type: integer }
+        shopperId: { type: ["integer", "null"] }
+        questionnaireId: { type: ["integer", "null"] }
+        visitDate: { type: string, format: date }
+        dueDate: { type: string, format: date }
+        instructions: { type: string }
+        priority: { $ref: "#/components/schemas/TaskPriority" }
+        status: { $ref: "#/components/schemas/TaskStatus" }
+      required: [storeId, visitDate, dueDate, instructions, priority, status]
+    TaskUpdate:
+      type: object
+      properties:
+        storeId: { type: integer }
+        shopperId: { type: ["integer", "null"] }
+        questionnaireId: { type: ["integer", "null"] }
+        visitDate: { type: string, format: date }
+        dueDate: { type: string, format: date }
+        instructions: { type: string }
+        priority: { $ref: "#/components/schemas/TaskPriority" }
+        status: { $ref: "#/components/schemas/TaskStatus" }
+    Question:
+      type: object
+      properties:
+        id: { type: integer }
+        prompt: { type: string }
+        type: { $ref: "#/components/schemas/QuestionType" }
+        required: { type: boolean }
+        position: { type: integer }
+        options:
+          type: array
+          items: { type: string }
+      required: [id, prompt, type, required, position, options]
+    QuestionInput:
+      type: object
+      properties:
+        prompt: { type: string, minLength: 1 }
+        type: { $ref: "#/components/schemas/QuestionType" }
+        required: { type: boolean }
+        position: { type: integer }
+        options:
+          type: array
+          items: { type: string }
+      required: [prompt, type, required, position, options]
+    Questionnaire:
+      type: object
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        description: { type: string }
+        status: { $ref: "#/components/schemas/QuestionnaireStatus" }
+        questions:
+          type: array
+          items: { $ref: "#/components/schemas/Question" }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+      required: [id, title, description, status, questions, createdAt, updatedAt]
+    QuestionnaireInput:
+      type: object
+      properties:
+        title: { type: string, minLength: 1 }
+        description: { type: string }
+        status: { $ref: "#/components/schemas/QuestionnaireStatus" }
+        questions:
+          type: array
+          items: { $ref: "#/components/schemas/QuestionInput" }
+      required: [title, description, status, questions]
+    QuestionnaireUpdate:
+      type: object
+      properties:
+        title: { type: string, minLength: 1 }
+        description: { type: string }
+        status: { $ref: "#/components/schemas/QuestionnaireStatus" }
+        questions:
+          type: array
+          items: { $ref: "#/components/schemas/QuestionInput" }
+    Dashboard:
+      type: object
+      properties:
+        totalStores: { type: integer }
+        totalShoppers: { type: integer }
+        pendingVerifications: { type: integer }
+        totalTasks: { type: integer }
+        pendingTasks: { type: integer }
+        completedTasks: { type: integer }
+        recentTasks:
+          type: array
+          items: { $ref: "#/components/schemas/Task" }
+        recentActivity:
+          type: array
+          items: { $ref: "#/components/schemas/Activity" }
+      required: [totalStores, totalShoppers, pendingVerifications, totalTasks, pendingTasks, completedTasks, recentTasks, recentActivity]
+    Activity:
+      type: object
+      properties:
+        id: { type: integer }
+        action: { type: string }
+        entityType: { type: string }
+        entityId: { type: integer }
+        description: { type: string }
+        createdAt: { type: string, format: date-time }
+      required: [id, action, entityType, entityId, description, createdAt]
 

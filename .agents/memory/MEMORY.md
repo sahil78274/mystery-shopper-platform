@@ -1,0 +1,1 @@
+- [Admin access boundary](admin-access-boundary.md) — the first milestone prepares role data but has no sign-in or server-side authorization yet.
