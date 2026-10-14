@@ -1,0 +1,36 @@
+Act as a senior full-stack engineer and debug my existing Mystery Shopper Management Platform.
+
+**Important: Do not rebuild the project or redesign the UI. Preserve the existing functionality, UI, routes, and project structure.**
+
+### Current problem
+Several features across the application are failing with similar errors. Issues have appeared around Stores, Shoppers, Verification, and Tasks. The Tasks list required defensive handling of API response data, but I suspect there may be a common underlying issue.
+
+### Project structure
+- Frontend: `artifacts/mystery-shopper`
+- Backend: `artifacts/api-server`
+- Backend routes include stores, shoppers, tasks, questionnaires, dashboard, and health.
+- The backend uses Express, Drizzle ORM, and Zod schemas.
+- The frontend uses generated API client functions.
+
+### Your task
+
+1. Inspect the entire existing project before changing any code.
+2. Reproduce or trace the failing requests and identify the exact root cause. Do not assume every issue comes from API response shapes.
+3. Check frontend API hooks and generated clients, request URLs, HTTP methods, request payloads, response schemas, and error handling.
+4. Check backend routes, validation schemas, database queries, database configuration, migrations, and environment variables where relevant.
+5. Investigate whether the same underlying issue explains failures across multiple modules.
+6. Check the browser console and backend logs if available. If the problem cannot be reproduced, explain what evidence is missing instead of guessing.
+7. Fix the confirmed root cause. Make the smallest safe changes possible and avoid unnecessary duplicate fixes across individual pages.
+8. Run the relevant type checks, build, and tests available in the project. Fix any regressions caused by your changes.
+9. Verify that listing, creating, updating, and deleting records work wherever applicable.
+10. Summarize the root cause, files changed, exact fixes, and tests performed. Clearly identify anything that could not be verified.
+
+### Strict requirements
+- Do not replace real backend operations with mock data.
+- Do not hide errors or simply suppress exceptions.
+- Do not add repeated `Array.isArray()` workarounds everywhere without proving they are necessary.
+- Do not remove existing features or alter the UI unnecessarily.
+- Do not expose secrets or overwrite environment files containing credentials.
+- Do not claim a fix is successful unless you have verified it.
+
+**Start with diagnosis, then implement and verify the fix.**
