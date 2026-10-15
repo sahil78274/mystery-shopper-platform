@@ -13,6 +13,48 @@ export interface Error {
   error: string;
 }
 
+export type SettingsDateFormat = typeof SettingsDateFormat[keyof typeof SettingsDateFormat];
+
+
+export const SettingsDateFormat = {
+  'MMM_d,_yyyy': 'MMM d, yyyy',
+  'dd/MM/yyyy': 'dd/MM/yyyy',
+  'MM/dd/yyyy': 'MM/dd/yyyy',
+  'yyyy-MM-dd': 'yyyy-MM-dd',
+} as const;
+
+export type SettingsTimeFormat = typeof SettingsTimeFormat[keyof typeof SettingsTimeFormat];
+
+
+export const SettingsTimeFormat = {
+  '12h': '12h',
+  '24h': '24h',
+} as const;
+
+export type SettingsPreferencesScope = typeof SettingsPreferencesScope[keyof typeof SettingsPreferencesScope];
+
+
+export const SettingsPreferencesScope = {
+  browser: 'browser',
+} as const;
+
+export interface SettingsPreferences {
+  scope: SettingsPreferencesScope;
+  timezone: string;
+  dateFormat: SettingsDateFormat;
+  timeFormat: SettingsTimeFormat;
+}
+
+export interface SettingsPreferencesInput {
+  /**
+     * @minLength 1
+     * @maxLength 64
+     */
+  timezone: string;
+  dateFormat: SettingsDateFormat;
+  timeFormat: SettingsTimeFormat;
+}
+
 export type StoreStatus = typeof StoreStatus[keyof typeof StoreStatus];
 
 

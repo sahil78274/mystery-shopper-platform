@@ -18,6 +18,38 @@ export const HealthCheckResponse = zod.object({
 
 
 /**
+ * @summary Get browser-scoped display preferences
+ */
+export const GetSettingsPreferencesResponse = zod.object({
+  "scope": zod.enum(['browser']),
+  "timezone": zod.string(),
+  "dateFormat": zod.enum(['MMM d, yyyy', 'dd/MM/yyyy', 'MM/dd/yyyy', 'yyyy-MM-dd']),
+  "timeFormat": zod.enum(['12h', '24h'])
+})
+
+
+/**
+ * @summary Save browser-scoped display preferences
+ */
+export const updateSettingsPreferencesBodyTimezoneMax = 64;
+
+
+
+export const UpdateSettingsPreferencesBody = zod.object({
+  "timezone": zod.string().min(1).max(updateSettingsPreferencesBodyTimezoneMax),
+  "dateFormat": zod.enum(['MMM d, yyyy', 'dd/MM/yyyy', 'MM/dd/yyyy', 'yyyy-MM-dd']),
+  "timeFormat": zod.enum(['12h', '24h'])
+})
+
+export const UpdateSettingsPreferencesResponse = zod.object({
+  "scope": zod.enum(['browser']),
+  "timezone": zod.string(),
+  "dateFormat": zod.enum(['MMM d, yyyy', 'dd/MM/yyyy', 'MM/dd/yyyy', 'yyyy-MM-dd']),
+  "timeFormat": zod.enum(['12h', '24h'])
+})
+
+
+/**
  * @summary Get admin dashboard metrics
  */
 export const GetDashboardResponse = zod.object({

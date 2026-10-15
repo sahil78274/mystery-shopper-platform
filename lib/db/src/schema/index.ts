@@ -18,6 +18,7 @@
 //   export type Post = typeof postsTable.$inferSelect;
 
 export * from "./activity-logs";
+export * from "./browser-preferences";
 export * from "./questionnaire-questions";
 export * from "./questionnaires";
 export * from "./shoppers";

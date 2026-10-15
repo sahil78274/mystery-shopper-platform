@@ -1,4 +1,4 @@
-import { type FormEvent, type ReactNode, useMemo, useState } from 'react';
+import { createContext, type FormEvent, type ReactNode, useContext, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -35,6 +35,7 @@ import {
   getGetQuestionnairesQueryKey,
   getGetShopperQueryKey,
   getGetShoppersQueryKey,
+  getGetSettingsPreferencesQueryKey,
   getGetStoreQueryKey,
   getGetStoresQueryKey,
   getGetTaskQueryKey,
@@ -50,6 +51,7 @@ import {
   useGetQuestionnaires,
   useGetShopper,
   useGetShoppers,
+  useGetSettingsPreferences,
   useGetStore,
   useGetStores,
   useGetTask,
@@ -57,6 +59,7 @@ import {
   useHealthCheck,
   useUpdateQuestionnaire,
   useUpdateShopper,
+  useUpdateSettingsPreferences,
   useUpdateStore,
   useUpdateTask,
 } from '@workspace/api-client-react';
@@ -65,6 +68,8 @@ import type {
   QuestionnaireInput,
   Shopper,
   ShopperInput,
+  SettingsPreferences,
+  SettingsPreferencesInput,
   Store,
   StoreInput,
   Task,
@@ -72,6 +77,21 @@ import type {
 } from '@workspace/api-client-react';
 
 type Entity = 'stores' | 'shoppers' | 'tasks' | 'questionnaires';
+const DEFAULT_BROWSER_PREFERENCES: SettingsPreferencesInput = {
+  timezone: 'UTC',
+  dateFormat: 'MMM d, yyyy',
+  timeFormat: '12h',
+};
+const BrowserPreferencesContext = createContext<SettingsPreferencesInput>(DEFAULT_BROWSER_PREFERENCES);
+
+function useWorkspaceDateFormatters() {
+  const preferences = useContext(BrowserPreferencesContext);
+  return useMemo(() => ({
+    formatDate: (value?: string | null) => formatDate(value, preferences),
+    formatDateTime: (value?: string | null) => formatDateTime(value, preferences),
+  }), [preferences]);
+}
+
 const navItems = [
   { label: 'Dashboard', href: '/', icon: LayoutDashboard },
   { label: 'Stores', href: '/stores', icon: Building2 },

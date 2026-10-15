@@ -20,6 +20,8 @@ tags:
     description: Visit task management
   - name: questionnaires
     description: Questionnaire management
+  - name: settings
+    description: Browser-scoped display preferences
 paths:
   /healthz:
     get:
@@ -34,6 +36,33 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /settings/preferences:
+    get:
+      operationId: getSettingsPreferences
+      tags: [settings]
+      summary: Get browser-scoped display preferences
+      responses:
+        "200":
+          description: Preferences saved for this browser
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SettingsPreferences" }
+    put:
+      operationId: updateSettingsPreferences
+      tags: [settings]
+      summary: Save browser-scoped display preferences
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SettingsPreferencesInput" }
+      responses:
+        "200":
+          description: Saved preferences
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SettingsPreferences" }
+        "400": { description: Invalid preferences }
   /dashboard:
     get:
       operationId: getDashboard
@@ -375,6 +404,27 @@ components:
       properties:
         error: { type: string }
       required: [error]
+    SettingsDateFormat:
+      type: string
+      enum: ["MMM d, yyyy", "dd/MM/yyyy", "MM/dd/yyyy", "yyyy-MM-dd"]
+    SettingsTimeFormat:
+      type: string
+      enum: ["12h", "24h"]
+    SettingsPreferences:
+      type: object
+      properties:
+        scope: { type: string, enum: [browser] }
+        timezone: { type: string }
+        dateFormat: { $ref: "#/components/schemas/SettingsDateFormat" }
+        timeFormat: { $ref: "#/components/schemas/SettingsTimeFormat" }
+      required: [scope, timezone, dateFormat, timeFormat]
+    SettingsPreferencesInput:
+      type: object
+      properties:
+        timezone: { type: string, minLength: 1, maxLength: 64 }
+        dateFormat: { $ref: "#/components/schemas/SettingsDateFormat" }
+        timeFormat: { $ref: "#/components/schemas/SettingsTimeFormat" }
+      required: [timezone, dateFormat, timeFormat]
     StoreStatus:
       type: string
       enum: [active, inactive]

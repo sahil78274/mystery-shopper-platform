@@ -29,6 +29,8 @@ import type {
   Questionnaire,
   QuestionnaireInput,
   QuestionnaireUpdate,
+  SettingsPreferences,
+  SettingsPreferencesInput,
   Shopper,
   ShopperInput,
   ShopperUpdate,
@@ -145,6 +147,171 @@ export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, 
 
 
 
+
+export const getGetSettingsPreferencesUrl = () => {
+
+
+
+
+  return `/api/settings/preferences`
+}
+
+/**
+ * @summary Get browser-scoped display preferences
+ */
+export const getSettingsPreferences = async ( options?: Parameters<typeof customFetch>[1]): Promise<SettingsPreferences> => {
+
+  return customFetch<SettingsPreferences>(getGetSettingsPreferencesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSettingsPreferencesQueryKey = () => {
+    return [
+    `/api/settings/preferences`
+    ] as const;
+    }
+
+
+export const getGetSettingsPreferencesQueryOptions = <TData = Awaited<ReturnType<typeof getSettingsPreferences>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSettingsPreferences>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSettingsPreferencesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSettingsPreferences>>> = ({ signal }) => getSettingsPreferences({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSettingsPreferences>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSettingsPreferencesQueryResult = NonNullable<Awaited<ReturnType<typeof getSettingsPreferences>>>
+export type GetSettingsPreferencesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get browser-scoped display preferences
+ */
+
+export function useGetSettingsPreferences<TData = Awaited<ReturnType<typeof getSettingsPreferences>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSettingsPreferences>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSettingsPreferencesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateSettingsPreferencesUrl = () => {
+
+
+
+
+  return `/api/settings/preferences`
+}
+
+/**
+ * @summary Save browser-scoped display preferences
+ */
+export const updateSettingsPreferences = async (settingsPreferencesInput: SettingsPreferencesInput, options?: Parameters<typeof customFetch>[1]): Promise<SettingsPreferences> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<SettingsPreferences>(getUpdateSettingsPreferencesUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(settingsPreferencesInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateSettingsPreferencesMutationKey = () => ['updateSettingsPreferences'] as const;
+
+export const getUpdateSettingsPreferencesMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSettingsPreferences>>, TError,UpdateSettingsPreferencesMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateSettingsPreferences>>, TError,UpdateSettingsPreferencesMutationVariables, TContext> => {
+
+const mutationKey = getUpdateSettingsPreferencesMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateSettingsPreferences>>, UpdateSettingsPreferencesMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateSettingsPreferences(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateSettingsPreferencesMutationResult = NonNullable<Awaited<ReturnType<typeof updateSettingsPreferences>>>
+    export type UpdateSettingsPreferencesMutationBody = BodyType<SettingsPreferencesInput>
+    export type UpdateSettingsPreferencesMutationError = ErrorType<void>
+    export type UpdateSettingsPreferencesMutationVariables = {data: BodyType<SettingsPreferencesInput>}
+
+    /**
+ * @summary Save browser-scoped display preferences
+ */
+export const useUpdateSettingsPreferences = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSettingsPreferences>>, TError,UpdateSettingsPreferencesMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateSettingsPreferences>>,
+        TError,
+        UpdateSettingsPreferencesMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateSettingsPreferencesMutationOptions(options));
+    }
 
 export const getGetDashboardUrl = () => {
 
