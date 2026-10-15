@@ -26,6 +26,12 @@ export interface Task {
   shopperName: string | null;
   /** @nullable */
   questionnaireTitle: string | null;
+  /** @nullable */
+  submittedAt: Date | null;
+  /** @nullable */
+  reviewerComment: string | null;
+  /** @nullable */
+  reviewedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }

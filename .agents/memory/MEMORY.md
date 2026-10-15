@@ -1,1 +1,2 @@
 - [Admin access boundary](admin-access-boundary.md) — the first milestone prepares role data but has no sign-in or server-side authorization yet.
+- [Reports data boundary](reports-data-boundary.md) — report rows are derived from visit tasks until real shopper submissions are captured.

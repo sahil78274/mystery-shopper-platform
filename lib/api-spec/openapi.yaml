@@ -386,7 +386,7 @@ components:
       enum: [active, inactive]
     TaskStatus:
       type: string
-      enum: [draft, assigned, in_progress, submitted, approved, rejected, cancelled]
+      enum: [draft, assigned, in_progress, submitted, under_review, approved, rejected, needs_correction, cancelled]
     TaskPriority:
       type: string
       enum: [low, medium, high, urgent]
@@ -497,9 +497,12 @@ components:
         storeCode: { type: string }
         shopperName: { type: ["string", "null"] }
         questionnaireTitle: { type: ["string", "null"] }
+        submittedAt: { type: ["string", "null"], format: date-time }
+        reviewerComment: { type: ["string", "null"] }
+        reviewedAt: { type: ["string", "null"], format: date-time }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
-      required: [id, storeId, shopperId, questionnaireId, visitDate, dueDate, instructions, priority, status, storeName, storeCode, shopperName, questionnaireTitle, createdAt, updatedAt]
+      required: [id, storeId, shopperId, questionnaireId, visitDate, dueDate, instructions, priority, status, storeName, storeCode, shopperName, questionnaireTitle, submittedAt, reviewerComment, reviewedAt, createdAt, updatedAt]
     TaskInput:
       type: object
       properties:
@@ -523,6 +526,7 @@ components:
         instructions: { type: string }
         priority: { $ref: "#/components/schemas/TaskPriority" }
         status: { $ref: "#/components/schemas/TaskStatus" }
+        reviewerComment: { type: ["string", "null"] }
     Question:
       type: object
       properties:

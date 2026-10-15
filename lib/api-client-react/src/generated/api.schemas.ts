@@ -46,8 +46,10 @@ export const TaskStatus = {
   assigned: 'assigned',
   in_progress: 'in_progress',
   submitted: 'submitted',
+  under_review: 'under_review',
   approved: 'approved',
   rejected: 'rejected',
+  needs_correction: 'needs_correction',
   cancelled: 'cancelled',
 } as const;
 
@@ -212,6 +214,12 @@ export interface Task {
   shopperName: string | null;
   /** @nullable */
   questionnaireTitle: string | null;
+  /** @nullable */
+  submittedAt: string | null;
+  /** @nullable */
+  reviewerComment: string | null;
+  /** @nullable */
+  reviewedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -240,6 +248,8 @@ export interface TaskUpdate {
   instructions?: string;
   priority?: TaskPriority;
   status?: TaskStatus;
+  /** @nullable */
+  reviewerComment?: string | null;
 }
 
 export interface Question {

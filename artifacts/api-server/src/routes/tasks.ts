@@ -41,6 +41,9 @@ function toTask(row: {
     storeCode: row.storeCode,
     shopperName: row.shopperName,
     questionnaireTitle: row.questionnaireTitle,
+    submittedAt: iso(row.task.submittedAt),
+    reviewerComment: row.task.reviewerComment,
+    reviewedAt: iso(row.task.reviewedAt),
     createdAt: iso(row.task.createdAt),
     updatedAt: iso(row.task.updatedAt),
   };
@@ -185,7 +188,12 @@ router.post("/tasks", async (req, res): Promise<void> => {
   }
   const [task] = await db
     .insert(tasksTable)
-    .values({ ...input, visitDate, dueDate })
+    .values({
+      ...input,
+      visitDate,
+      dueDate,
+      submittedAt: input.status === "submitted" ? new Date() : null,
+    })
     .returning();
   const result = await getTaskRow(task.id);
   await recordActivity("created", "task", task.id, `Created task for ${result?.storeName ?? "store"}`);
@@ -270,14 +278,31 @@ router.patch("/tasks/:taskId", async (req, res): Promise<void> => {
   const {
     visitDate: requestedVisitDate,
     dueDate: requestedDueDate,
+    reviewerComment,
     ...updates
   } = parsed.data;
+  const nextStatus = parsed.data.status;
+  const returningToSubmitted =
+    nextStatus === "submitted" && current.status !== "submitted";
+  const enteringReview =
+    nextStatus === "under_review" && current.status !== "under_review";
+  const completingReview = [
+    "approved",
+    "rejected",
+    "needs_correction",
+  ].includes(nextStatus ?? "");
   const [updated] = await db
     .update(tasksTable)
     .set({
       ...updates,
       ...(requestedVisitDate !== undefined ? { visitDate } : {}),
       ...(requestedDueDate !== undefined ? { dueDate } : {}),
+      ...(reviewerComment !== undefined ? { reviewerComment } : {}),
+      ...(returningToSubmitted
+        ? { submittedAt: new Date(), reviewerComment: null, reviewedAt: null }
+        : {}),
+      ...(enteringReview ? { reviewedAt: null } : {}),
+      ...(completingReview ? { reviewedAt: new Date() } : {}),
     })
     .where(eq(tasksTable.id, current.id))
     .returning();

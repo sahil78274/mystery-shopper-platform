@@ -36,11 +36,14 @@ export const GetDashboardResponse = zod.object({
   "dueDate": zod.coerce.date(),
   "instructions": zod.string(),
   "priority": zod.enum(['low', 'medium', 'high', 'urgent']),
-  "status": zod.enum(['draft', 'assigned', 'in_progress', 'submitted', 'approved', 'rejected', 'cancelled']),
+  "status": zod.enum(['draft', 'assigned', 'in_progress', 'submitted', 'under_review', 'approved', 'rejected', 'needs_correction', 'cancelled']),
   "storeName": zod.string(),
   "storeCode": zod.string(),
   "shopperName": zod.string().nullable(),
   "questionnaireTitle": zod.string().nullable(),
+  "submittedAt": zod.coerce.date().nullable(),
+  "reviewerComment": zod.string().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })),
@@ -353,7 +356,7 @@ export const DecideShopperVerificationResponse = zod.object({
  */
 export const GetTasksQueryParams = zod.object({
   "search": zod.coerce.string().optional(),
-  "status": zod.enum(['draft', 'assigned', 'in_progress', 'submitted', 'approved', 'rejected', 'cancelled']).optional()
+  "status": zod.enum(['draft', 'assigned', 'in_progress', 'submitted', 'under_review', 'approved', 'rejected', 'needs_correction', 'cancelled']).optional()
 })
 
 export const GetTasksResponseItem = zod.object({
@@ -365,11 +368,14 @@ export const GetTasksResponseItem = zod.object({
   "dueDate": zod.coerce.date(),
   "instructions": zod.string(),
   "priority": zod.enum(['low', 'medium', 'high', 'urgent']),
-  "status": zod.enum(['draft', 'assigned', 'in_progress', 'submitted', 'approved', 'rejected', 'cancelled']),
+  "status": zod.enum(['draft', 'assigned', 'in_progress', 'submitted', 'under_review', 'approved', 'rejected', 'needs_correction', 'cancelled']),
   "storeName": zod.string(),
   "storeCode": zod.string(),
   "shopperName": zod.string().nullable(),
   "questionnaireTitle": zod.string().nullable(),
+  "submittedAt": zod.coerce.date().nullable(),
+  "reviewerComment": zod.string().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -387,7 +393,7 @@ export const CreateTaskBody = zod.object({
   "dueDate": zod.coerce.date(),
   "instructions": zod.string(),
   "priority": zod.enum(['low', 'medium', 'high', 'urgent']),
-  "status": zod.enum(['draft', 'assigned', 'in_progress', 'submitted', 'approved', 'rejected', 'cancelled'])
+  "status": zod.enum(['draft', 'assigned', 'in_progress', 'submitted', 'under_review', 'approved', 'rejected', 'needs_correction', 'cancelled'])
 })
 
 export const CreateTaskResponse = zod.object({
@@ -399,11 +405,14 @@ export const CreateTaskResponse = zod.object({
   "dueDate": zod.coerce.date(),
   "instructions": zod.string(),
   "priority": zod.enum(['low', 'medium', 'high', 'urgent']),
-  "status": zod.enum(['draft', 'assigned', 'in_progress', 'submitted', 'approved', 'rejected', 'cancelled']),
+  "status": zod.enum(['draft', 'assigned', 'in_progress', 'submitted', 'under_review', 'approved', 'rejected', 'needs_correction', 'cancelled']),
   "storeName": zod.string(),
   "storeCode": zod.string(),
   "shopperName": zod.string().nullable(),
   "questionnaireTitle": zod.string().nullable(),
+  "submittedAt": zod.coerce.date().nullable(),
+  "reviewerComment": zod.string().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -425,11 +434,14 @@ export const GetTaskResponse = zod.object({
   "dueDate": zod.coerce.date(),
   "instructions": zod.string(),
   "priority": zod.enum(['low', 'medium', 'high', 'urgent']),
-  "status": zod.enum(['draft', 'assigned', 'in_progress', 'submitted', 'approved', 'rejected', 'cancelled']),
+  "status": zod.enum(['draft', 'assigned', 'in_progress', 'submitted', 'under_review', 'approved', 'rejected', 'needs_correction', 'cancelled']),
   "storeName": zod.string(),
   "storeCode": zod.string(),
   "shopperName": zod.string().nullable(),
   "questionnaireTitle": zod.string().nullable(),
+  "submittedAt": zod.coerce.date().nullable(),
+  "reviewerComment": zod.string().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -450,7 +462,8 @@ export const UpdateTaskBody = zod.object({
   "dueDate": zod.coerce.date().optional(),
   "instructions": zod.string().optional(),
   "priority": zod.enum(['low', 'medium', 'high', 'urgent']).optional(),
-  "status": zod.enum(['draft', 'assigned', 'in_progress', 'submitted', 'approved', 'rejected', 'cancelled']).optional()
+  "status": zod.enum(['draft', 'assigned', 'in_progress', 'submitted', 'under_review', 'approved', 'rejected', 'needs_correction', 'cancelled']).optional(),
+  "reviewerComment": zod.string().nullish()
 })
 
 export const UpdateTaskResponse = zod.object({
@@ -462,11 +475,14 @@ export const UpdateTaskResponse = zod.object({
   "dueDate": zod.coerce.date(),
   "instructions": zod.string(),
   "priority": zod.enum(['low', 'medium', 'high', 'urgent']),
-  "status": zod.enum(['draft', 'assigned', 'in_progress', 'submitted', 'approved', 'rejected', 'cancelled']),
+  "status": zod.enum(['draft', 'assigned', 'in_progress', 'submitted', 'under_review', 'approved', 'rejected', 'needs_correction', 'cancelled']),
   "storeName": zod.string(),
   "storeCode": zod.string(),
   "shopperName": zod.string().nullable(),
   "questionnaireTitle": zod.string().nullable(),
+  "submittedAt": zod.coerce.date().nullable(),
+  "reviewerComment": zod.string().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })

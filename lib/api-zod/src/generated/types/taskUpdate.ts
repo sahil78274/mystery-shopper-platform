@@ -19,4 +19,6 @@ export interface TaskUpdate {
   instructions?: string;
   priority?: TaskPriority;
   status?: TaskStatus;
+  /** @nullable */
+  reviewerComment?: string | null;
 }

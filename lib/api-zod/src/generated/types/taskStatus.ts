@@ -14,7 +14,9 @@ export const TaskStatus = {
   assigned: 'assigned',
   in_progress: 'in_progress',
   submitted: 'submitted',
+  under_review: 'under_review',
   approved: 'approved',
   rejected: 'rejected',
+  needs_correction: 'needs_correction',
   cancelled: 'cancelled',
 } as const;

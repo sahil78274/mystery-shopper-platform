@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   ArrowUpRight,
   Building2,
+  CalendarDays,
   Check,
   CheckCircle2,
   ChevronDown,
@@ -13,6 +14,7 @@ import {
   ClipboardCheck,
   ClipboardList,
   Clock3,
+  Eye,
   FileQuestion,
   Filter,
   LayoutDashboard,
@@ -23,6 +25,7 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   Store as StoreIcon,
+  UserRound,
   UsersRound,
   X,
 } from 'lucide-react';
@@ -990,16 +993,178 @@ function QuestionnaireDetail({ id }: { id: number }) {
   );
 }
 
-function OutsideMilestone({ section }: { section: 'Reports' | 'Settings' }) {
+const reportStatuses = ['submitted', 'under_review', 'approved', 'rejected', 'needs_correction'] as const;
+const REPORTS_PAGE_SIZE = 10;
+
+function ReportsPage() {
+  const tasks = useGetTasks();
+  const updateTask = useUpdateTask();
+  const queryClient = useQueryClient();
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState('');
+  const [store, setStore] = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+  const [page, setPage] = useState(0);
+  const [selected, setSelected] = useState<Task | null>(null);
+  const [reviewStatus, setReviewStatus] = useState<Task['status'] | ''>('');
+  const [reviewComment, setReviewComment] = useState('');
+  const [reviewError, setReviewError] = useState('');
+  const [reviewNotice, setReviewNotice] = useState('');
+  const [toast, setToast] = useState('');
+
+  const reports = useMemo(() => (tasks.data || []).filter((task) => reportStatuses.includes(task.status as typeof reportStatuses[number])), [tasks.data]);
+  const stores = useMemo(() => Array.from(new Set(reports.map((task) => task.storeName).filter(Boolean))).sort((a, b) => a.localeCompare(b)), [reports]);
+  const filtered = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return reports.filter((task) => {
+      const matchesTerm = !term || String(task.id).includes(term) || task.storeName.toLowerCase().includes(term) || (task.shopperName || '').toLowerCase().includes(term);
+      const date = task.submittedAt?.slice(0, 10) || '';
+      return matchesTerm && (!status || task.status === status) && (!store || task.storeName === store) && (!fromDate || (date && date >= fromDate)) && (!toDate || (date && date <= toDate));
+    });
+  }, [reports, search, status, store, fromDate, toDate]);
+  const pageCount = Math.ceil(filtered.length / REPORTS_PAGE_SIZE);
+  const currentPage = Math.min(page, Math.max(0, pageCount - 1));
+  const visibleReports = filtered.slice(currentPage * REPORTS_PAGE_SIZE, (currentPage + 1) * REPORTS_PAGE_SIZE);
+
+  const openDetail = (task: Task) => {
+    setSelected(task);
+    setReviewStatus(task.status);
+    setReviewComment(task.reviewerComment || '');
+    setReviewError('');
+    setReviewNotice('');
+  };
+  const submitReview = () => {
+    if (!selected || !['under_review', 'approved', 'rejected', 'needs_correction'].includes(reviewStatus)) return;
+    const comment = reviewComment.trim();
+    if ((reviewStatus === 'rejected' || reviewStatus === 'needs_correction') && !comment) {
+      setReviewError('A reviewer comment is required for this outcome.');
+      return;
+    }
+    setReviewError('');
+    setReviewNotice('');
+    updateTask.mutate(
+      { taskId: selected.id, data: { status: reviewStatus as Task['status'], reviewerComment: comment || null } },
+      {
+        onSuccess: (updatedTask) => {
+          void queryClient.invalidateQueries({ queryKey: getGetTasksQueryKey() });
+          setSelected(updatedTask);
+          setReviewStatus(updatedTask.status);
+          setReviewComment(updatedTask.reviewerComment || '');
+          setReviewNotice('Review saved successfully.');
+          setToast(`Task #${selected.id} review updated.`);
+          window.setTimeout(() => setToast(''), 2800);
+        },
+        onError: (error) => setReviewError(messageOf(error)),
+      },
+    );
+  };
+  const clearFilters = () => { setSearch(''); setStatus(''); setStore(''); setFromDate(''); setToDate(''); setPage(0); };
+
   return (
     <>
-      <PageHeading kicker="Workspace" title={section} description={section === 'Reports' ? 'Reporting is planned for a later milestone.' : 'Workspace preferences are planned for a later milestone.'} />
-      <section className="panel" style={{ padding: 30, maxWidth: 670 }}>
-        <div className="state-icon"><Clock3 size={19} /></div>
-        <h2 className="section-title" style={{ fontSize: 17, marginBottom: 8 }}>{section} are outside this first milestone</h2>
-        <p className="page-desc" style={{ lineHeight: 1.65, maxWidth: 470 }}>This area is intentionally not available yet. Your active store, shopper, verification, task, and questionnaire workflows remain available from the navigation.</p>
-        <Link className="btn btn-primary" href="/">Return to dashboard</Link>
-      </section>
+      <PageHeading kicker="Visit outcomes" title="Reports" description="Review submitted field visits and their operational outcomes." />
+      {tasks.isLoading ? <section className="panel"><StateBlock loading /></section> : tasks.isError ? <section className="panel"><StateBlock error onRetry={() => tasks.refetch()} /></section> : (
+        <>
+          <section className="report-summary" aria-label="Report summary">
+            {[
+              { label: 'Total reports', value: reports.length, key: 'all' },
+              { label: 'Pending reviews', value: reports.filter((task) => task.status === 'submitted' || task.status === 'under_review').length, key: 'review' },
+              { label: 'Approved reports', value: reports.filter((task) => task.status === 'approved').length, key: 'approved' },
+              { label: 'Rejected or correction-requested', value: reports.filter((task) => task.status === 'rejected' || task.status === 'needs_correction').length, key: 'followup' },
+            ].map((item) => <article className="panel report-metric" key={item.key} data-testid={`report-summary-${item.key}`}><span>{item.label}</span><strong>{item.value}</strong></article>)}
+          </section>
+          <section className="panel report-panel">
+            <div className="toolbar report-toolbar">
+              <div className="search-wrap"><Search size={15} /><input className="field" aria-label="Search reports" data-testid="input-report-search" placeholder="Search task, store or shopper" value={search} onChange={(event) => { setSearch(event.target.value); setPage(0); }} /></div>
+              <select className="select report-select" aria-label="Filter reports by status" data-testid="select-report-status" value={status} onChange={(event) => { setStatus(event.target.value); setPage(0); }}><option value="">All statuses</option>{reportStatuses.map((value) => <option value={value} key={value}>{value.replaceAll('_', ' ')}</option>)}</select>
+              <select className="select report-select" aria-label="Filter reports by store" data-testid="select-report-store" value={store} onChange={(event) => { setStore(event.target.value); setPage(0); }}><option value="">All stores</option>{stores.map((name) => <option value={name} key={name}>{name}</option>)}</select>
+              <div className="date-filter"><CalendarDays size={14} /><input aria-label="Submission date from" data-testid="input-report-date-from" type="date" value={fromDate} onChange={(event) => { setFromDate(event.target.value); setPage(0); }} /></div>
+              <div className="date-filter"><span>to</span><input aria-label="Submission date to" data-testid="input-report-date-to" type="date" value={toDate} onChange={(event) => { setToDate(event.target.value); setPage(0); }} /></div>
+              <button className="btn btn-sm btn-quiet report-clear" type="button" onClick={clearFilters} data-testid="button-clear-report-filters">Clear filters</button>
+            </div>
+            {!reports.length ? <StateBlock empty /> : !filtered.length ? (
+              <div className="report-no-results" data-testid="report-no-results"><div className="state-icon"><Filter size={18} /></div><h3>No matching visits</h3><p>Adjust or clear the filters to see more submitted records.</p><button className="btn btn-sm" onClick={clearFilters}>Clear filters</button></div>
+            ) : (
+              <>
+                <div className="table-wrap"><table className="report-table">
+                  <thead><tr><th>Task</th><th>Store</th><th>Shopper</th><th>Visit date</th><th>Submitted</th><th>Status</th><th>Score</th><th /></tr></thead>
+                  <tbody>{visibleReports.map((task) => <tr key={task.id} data-testid={`row-report-${task.id}`}>
+                    <td><span className="primary-cell">{task.instructions || 'Visit task'}<span className="secondary-cell mono">Task #{task.id}</span></span></td>
+                    <td><span className="primary-cell">{task.storeName}</span><span className="secondary-cell mono">{task.storeCode}</span></td>
+                    <td>{task.shopperName || 'Unassigned'}</td>
+                    <td>{formatDate(task.visitDate)}</td>
+                    <td>{task.submittedAt ? formatDateTime(task.submittedAt) : <span className="not-recorded">Not recorded</span>}</td>
+                    <td><span data-testid={`status-report-${task.id}`}><Status value={task.status} /></span></td>
+                    <td><span className="not-recorded">Not captured</span></td>
+                    <td><button className="btn btn-sm" type="button" onClick={() => openDetail(task)} data-testid={`button-inspect-task-${task.id}`}><Eye size={14} /> Inspect</button></td>
+                  </tr>)}</tbody>
+                </table></div>
+                <div className="pagination report-pagination" data-testid="report-pagination">
+                  <span>Showing {filtered.length ? currentPage * REPORTS_PAGE_SIZE + 1 : 0}–{Math.min((currentPage + 1) * REPORTS_PAGE_SIZE, filtered.length)} of {filtered.length} reports</span>
+                  {pageCount > 1 && <div className="report-page-controls"><button className="btn btn-sm" type="button" disabled={currentPage === 0} onClick={() => setPage((value) => Math.max(0, value - 1))} data-testid="button-report-previous">Previous</button><span>Page {currentPage + 1} of {pageCount}</span><button className="btn btn-sm" type="button" disabled={currentPage >= pageCount - 1} onClick={() => setPage((value) => Math.min(pageCount - 1, value + 1))} data-testid="button-report-next">Next</button></div>}
+                  <span>Submission date filters exclude records without a recorded submission time.</span>
+                </div>
+              </>
+            )}
+          </section>
+        </>
+      )}
+      {selected && <Modal title={`Task #${selected.id}`} subtitle="Visit record and review" onClose={() => setSelected(null)} width="760px">
+        <div className="report-detail">
+          <section className="report-detail-section">
+            <div className="report-detail-heading"><div><h3>Visit details</h3><p>Operational information recorded for this task.</p></div><Status value={selected.status} /></div>
+            <div className="detail-list report-detail-list">
+              <DetailItem label="Store" value={<>{selected.storeName}<span className="secondary-cell mono">{selected.storeCode}</span></>} />
+              <DetailItem label="Shopper" value={selected.shopperName || 'Unassigned'} />
+              <DetailItem label="Visit date" value={formatDate(selected.visitDate)} />
+              <DetailItem label="Due date" value={formatDate(selected.dueDate)} />
+              <DetailItem label="Submission date" value={selected.submittedAt ? formatDateTime(selected.submittedAt) : 'Not recorded'} />
+              <DetailItem label="Score" value="Not captured" />
+              <DetailItem label="Reviewed" value={selected.reviewedAt ? formatDateTime(selected.reviewedAt) : 'Not reviewed'} />
+              <DetailItem label="Questionnaire" value={selected.questionnaireTitle || 'Not available'} />
+            </div>
+            <div className="report-copy-block"><label>Visit instructions</label><p>{selected.instructions || 'No instructions recorded.'}</p></div>
+          </section>
+          <div className="notice report-unavailable" data-testid="report-content-unavailable"><FileQuestion size={16} /><p>Questionnaire answers and evidence/photos are not stored by the current system, so they are unavailable for this visit.</p></div>
+          {['submitted', 'under_review'].includes(selected.status) ? (
+            <section className="report-review-section">
+              <div className="report-detail-heading"><div><h3>Review outcome</h3><p>Choose an outcome and leave a note for the task record.</p></div></div>
+              <label className="form-field"><span className="form-label">Outcome</span><select className="select" data-testid="select-review-status" value={reviewStatus} onChange={(event) => setReviewStatus(event.target.value as Task['status'])}><option value="under_review">Under review</option><option value="approved">Approved</option><option value="rejected">Rejected</option><option value="needs_correction">Needs correction</option></select></label>
+              <label className="form-field report-comment"><span className="form-label">Reviewer comment{(reviewStatus === 'rejected' || reviewStatus === 'needs_correction') ? ' *' : ''}</span><textarea className="textarea" data-testid="textarea-review-comment" value={reviewComment} onChange={(event) => setReviewComment(event.target.value)} placeholder="Add context for this review" /></label>
+              {reviewError && <p className="field-error" role="alert" data-testid="text-review-error">{reviewError}</p>}
+              {reviewNotice && <p className="review-success" role="status" data-testid="text-review-success"><CheckCircle2 size={15} />{reviewNotice}</p>}
+              <div className="form-footer"><button className="btn" type="button" onClick={() => setSelected(null)} data-testid="button-close-report-detail">Close</button><button className="btn btn-primary" type="button" onClick={submitReview} disabled={updateTask.isPending} data-testid="button-save-review">{updateTask.isPending ? 'Saving review…' : 'Save review'}</button></div>
+            </section>
+          ) : (
+            <>
+              {selected.reviewerComment && <div className="report-copy-block"><label>Reviewer comment</label><p>{selected.reviewerComment}</p></div>}
+              <div className="form-footer"><button className="btn" type="button" onClick={() => setSelected(null)} data-testid="button-close-report-detail">Close</button></div>
+            </>
+          )}
+        </div>
+      </Modal>}
+      <Toast message={toast} />
+    </>
+  );
+}
+
+function SettingsPage() {
+  const sections = [
+    { title: 'Profile', description: 'Personal account information and identity.', reason: 'Name, email, and role are unavailable because the current platform does not expose an authenticated user profile.', icon: UserRound, id: 'profile' },
+    { title: 'Organization', description: 'Workspace identity and organization-wide details.', reason: 'Organization name and details are not available through the current service.', icon: Building2, id: 'organization' },
+    { title: 'Preferences', description: 'Personal defaults for how Fieldnote behaves.', reason: 'Date/time and notification preferences are not saved by the current service.', icon: SlidersHorizontal, id: 'preferences' },
+    { title: 'Security', description: 'Authentication, credentials, and account protection.', reason: 'Password and security controls are unavailable because the current backend does not provide authentication.', icon: ShieldCheck, id: 'security' },
+  ];
+  return (
+    <>
+      <PageHeading kicker="Workspace controls" title="Settings" description="Review the configuration areas available to your operations team." />
+      <div className="settings-layout">
+        <aside className="settings-intro panel"><div className="settings-intro-mark"><SlidersHorizontal size={18} /></div><div className="eyebrow">Fieldnote workspace</div><h2>Configuration, clearly scoped.</h2><p>Settings are shown here so the workspace stays navigable. Unsupported areas are marked unavailable until the service can save and manage them.</p></aside>
+        <div className="settings-sections">{sections.map(({ title, description, reason, icon: Icon, id }) => <section className="panel settings-card" key={id} data-testid={`settings-section-${id}`}>
+          <div className="settings-icon"><Icon size={17} /></div><div className="settings-copy"><div className="settings-card-top"><div><h2>{title}</h2><p>{description}</p></div><span className="unavailable-pill">Unavailable</span></div><div className="settings-explanation">{reason}</div></div>
+        </section>)}</div>
+      </div>
     </>
   );
 }
@@ -1017,8 +1182,8 @@ export function Workspace() {
   else if (normalizedPath === '/verification') page = <VerificationPage />;
   else if (normalizedPath === '/tasks') page = <TasksPage />;
   else if (normalizedPath === '/questionnaires') page = <QuestionnairesPage />;
-  else if (normalizedPath === '/reports') page = <OutsideMilestone section="Reports" />;
-  else if (normalizedPath === '/settings') page = <OutsideMilestone section="Settings" />;
+  else if (normalizedPath === '/reports') page = <ReportsPage />;
+  else if (normalizedPath === '/settings') page = <SettingsPage />;
   else if (idSegment && Number.isFinite(id) && ['stores', 'shoppers', 'tasks', 'questionnaires'].includes(section || '')) page = <DetailPage kind={section as Entity} id={id} />;
   else page = <div className="panel"><StateBlock error /></div>;
   return <WorkspaceShell>{page}</WorkspaceShell>;

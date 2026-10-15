@@ -1,0 +1,136 @@
+# Continue Existing Project — Mystery Shopper Management Platform
+
+Continue working on my existing **Mystery Shopper Management Platform for Ricoz Innovation** from exactly where the previous development session ended. Do not start a new project or rebuild the existing application.
+
+## 1. Existing Project Context
+
+The application is already created and deployed.
+
+- Frontend: React, TypeScript, Vite
+- Backend: Node.js, Express, TypeScript
+- Database: PostgreSQL
+- API client: Existing generated API client using React Query
+- Frontend project: `artifacts/mystery-shopper`
+- Backend project: `artifacts/api-server`
+- API client package: `lib/api-client-react`
+
+The existing frontend is deployed on Render, and the backend API is deployed separately.
+
+## 2. Existing Pages — Do Not Rebuild
+
+The following pages have already been created:
+
+1. Dashboard
+2. Stores
+3. Mystery Shoppers
+4. Verification
+5. Tasks
+6. Questionnaires
+
+Treat these six pages as already developed. Do not recreate, redesign, rename, or unnecessarily modify them.
+
+We will test their complete functionality later, after the remaining pages are developed.
+
+## 3. Today's Scope — Only Two Pages
+
+Today, implement the remaining two pages:
+
+### A. Reports Page
+
+Create a complete, professional Reports page for the Mystery Shopper Management Platform.
+
+The page should include:
+
+- Summary cards for total reports, pending reviews, approved reports, and rejected or correction-requested reports.
+- A reports table containing report ID, store name, shopper name, task, submission date, score, and status wherever the existing data model supports these fields.
+- Search reports by store name, shopper name, or report ID.
+- Filters for report status, store, and date range where supported.
+- Clear status badges for Submitted, Under Review, Approved, Rejected, and Needs Correction, using the existing status conventions where available.
+- A report detail view that allows the user to inspect submitted answers and available evidence or photos.
+- Review actions such as Approve, Reject, and Request Correction only if the existing backend supports them or they can be implemented consistently with the existing architecture.
+- Reviewer comments and correction reasons where applicable.
+- Loading, empty, error, and retry states.
+- Pagination if appropriate for the existing API.
+
+Reports must use actual backend/database data. Do not create fake report records, hardcoded statistics, or pretend that an action succeeded.
+
+If report-related database tables or endpoints do not yet exist, inspect the existing schema, routes, and generated API client first. Implement only the necessary missing functionality, following the project's established patterns.
+
+### B. Settings Page
+
+Create a professional Settings page consistent with the existing application design.
+
+Organize settings into clear sections:
+
+**1. Profile Settings**
+- Name
+- Email
+- Role
+- Editable profile fields only where supported by the current backend.
+
+**2. Organization Settings**
+- Organization or company name
+- Relevant organization details, if supported by the existing data model.
+
+**3. Preferences**
+- Date and time preferences, notification preferences, or other relevant options only when they can be meaningfully supported.
+
+**4. Security**
+- Password change or account security options only if the existing authentication system supports them.
+- Do not expose passwords, authentication tokens, or secrets.
+
+**5. Save and Feedback**
+- Provide appropriate save, cancel, success, and error states.
+- Persist changes through the backend wherever supported.
+- Never show a success message when the backend operation fails.
+
+Do not invent settings that appear functional but do not save anything. If a setting cannot yet be supported, either omit it or clearly mark it as unavailable.
+
+## 4. UI and Design Requirements
+
+- Preserve the current Ricoz/Mystery Shopper application's visual identity, sidebar, navigation, spacing, typography, and component patterns.
+- Reuse existing components, icons, modal patterns, tables, status badges, and styling.
+- Make both pages responsive for desktop, tablet, and mobile.
+- Maintain a clean, enterprise-grade SaaS appearance.
+- Do not introduce an unrelated design system or unnecessary dependencies.
+
+## 5. Technical Requirements
+
+Before coding:
+
+1. Inspect the existing source code, routes, API endpoints, database schema, and generated API client.
+2. Identify what already exists and reuse it.
+3. Do not duplicate existing components, database tables, endpoints, or functionality.
+4. Follow existing TypeScript, React Query, Express, and PostgreSQL conventions.
+5. Keep API URLs and environment configuration compatible with the existing local and Render deployments.
+6. Avoid changing working configuration or deployment settings unless necessary.
+
+If backend changes or database migrations are required, implement them safely and explain what needs to be deployed or migrated.
+
+## 6. Important Scope Restrictions
+
+Today's task is ONLY:
+
+- Reports page
+- Settings page
+- The minimum supporting backend/API/database changes required for these two pages
+
+Do not spend today's session rechecking or rebuilding the Dashboard, Stores, Mystery Shoppers, Verification, Tasks, or Questionnaires pages. We will perform end-to-end functionality testing of all pages after this development work is complete.
+
+Do not add unrelated advanced features.
+
+## 7. Completion Criteria
+
+When finished:
+
+1. Both pages are accessible through the existing sidebar navigation.
+2. Reports displays real data wherever the backend supports it.
+3. Report details and review actions work through real API calls wherever implemented.
+4. Settings save and retrieve supported values correctly.
+5. Loading, empty, and error states are handled properly.
+6. Existing pages and navigation remain intact.
+7. Run the available TypeScript checks and production build.
+8. Fix errors introduced by your changes.
+9. Summarize the files changed, features completed, any database migrations required, and any remaining limitations.
+
+**Start by inspecting the existing project and continue from its current state. Do not ask me to recreate the project or repeat the existing requirements. Implement Reports and Settings now.**

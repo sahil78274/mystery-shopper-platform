@@ -22,11 +22,17 @@ export const tasksTable = pgTable("tasks", {
   instructions: text("instructions").notNull().default(""),
   priority: text("priority").notNull().default("medium"),
   status: text("status").notNull().default("draft"),
+  submittedAt: timestamp("submitted_at", { withTimezone: true }),
+  reviewerComment: text("reviewer_comment"),
+  reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
 
 export const insertTaskSchema = createInsertSchema(tasksTable).omit({
+  submittedAt: true,
+  reviewerComment: true,
+  reviewedAt: true,
   createdAt: true,
   updatedAt: true,
 });
