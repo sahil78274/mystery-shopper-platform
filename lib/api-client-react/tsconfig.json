@@ -8,5 +8,5 @@
     "rootDir": "src",
     "lib": ["dom", "dom.iterable", "es2022"]
   },
-  "include": ["src"]
+  "include": ["src", "../../artifacts/mystery-shopper/src/vite-env.d.ts"]
 }
