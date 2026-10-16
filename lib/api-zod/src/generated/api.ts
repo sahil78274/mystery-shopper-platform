@@ -652,3 +652,1182 @@ export const UpdateQuestionnaireResponse = zod.object({
 })
 
 
+/**
+ * Creates a mystery shopper login together with a pending shopper profile. Privileged roles can only be created by an administrator through /users.
+ * @summary Public self-registration for mystery shoppers only
+ */
+
+export const registerShopperBodyPasswordMin = 8;
+
+
+
+export const registerShopperBodyExperienceMin = 0;
+
+
+
+export const RegisterShopperBody = zod.object({
+  "fullName": zod.string().min(1),
+  "email": zod.string().email(),
+  "password": zod.string().min(registerShopperBodyPasswordMin),
+  "phone": zod.string().min(1),
+  "city": zod.string().min(1),
+  "experience": zod.number().int().min(registerShopperBodyExperienceMin).optional()
+})
+
+export const RegisterShopperResponse = zod.object({
+  "token": zod.string(),
+  "expiresAt": zod.coerce.date(),
+  "user": zod.object({
+  "id": zod.number().int(),
+  "fullName": zod.string(),
+  "email": zod.string(),
+  "role": zod.enum(['admin', 'mystery_shopper', 'reviewer', 'regional_executive']),
+  "accountStatus": zod.enum(['active', 'inactive']),
+  "region": zod.string().nullable(),
+  "shopperId": zod.number().int().nullable(),
+  "verificationStatus": zod.string().nullable(),
+  "lastLoginAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+})
+
+
+/**
+ * @summary Sign in and open a session
+ */
+
+
+
+export const LoginBody = zod.object({
+  "email": zod.string().email(),
+  "password": zod.string().min(1)
+})
+
+export const LoginResponse = zod.object({
+  "token": zod.string(),
+  "expiresAt": zod.coerce.date(),
+  "user": zod.object({
+  "id": zod.number().int(),
+  "fullName": zod.string(),
+  "email": zod.string(),
+  "role": zod.enum(['admin', 'mystery_shopper', 'reviewer', 'regional_executive']),
+  "accountStatus": zod.enum(['active', 'inactive']),
+  "region": zod.string().nullable(),
+  "shopperId": zod.number().int().nullable(),
+  "verificationStatus": zod.string().nullable(),
+  "lastLoginAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+})
+
+
+/**
+ * @summary End the current session
+ */
+export const LogoutResponse = zod.void()
+
+
+/**
+ * @summary Current signed-in account
+ */
+export const GetAuthSessionResponse = zod.object({
+  "id": zod.number().int(),
+  "fullName": zod.string(),
+  "email": zod.string(),
+  "role": zod.enum(['admin', 'mystery_shopper', 'reviewer', 'regional_executive']),
+  "accountStatus": zod.enum(['active', 'inactive']),
+  "region": zod.string().nullable(),
+  "shopperId": zod.number().int().nullable(),
+  "verificationStatus": zod.string().nullable(),
+  "lastLoginAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update the signed-in account profile
+ */
+
+
+
+export const UpdateAuthProfileBody = zod.object({
+  "fullName": zod.string().min(1).optional(),
+  "email": zod.string().email().optional()
+})
+
+export const UpdateAuthProfileResponse = zod.object({
+  "id": zod.number().int(),
+  "fullName": zod.string(),
+  "email": zod.string(),
+  "role": zod.enum(['admin', 'mystery_shopper', 'reviewer', 'regional_executive']),
+  "accountStatus": zod.enum(['active', 'inactive']),
+  "region": zod.string().nullable(),
+  "shopperId": zod.number().int().nullable(),
+  "verificationStatus": zod.string().nullable(),
+  "lastLoginAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Change the signed-in account password
+ */
+
+export const changePasswordBodyNewPasswordMin = 8;
+
+
+
+export const ChangePasswordBody = zod.object({
+  "currentPassword": zod.string().min(1),
+  "newPassword": zod.string().min(changePasswordBodyNewPasswordMin)
+})
+
+export const ChangePasswordResponse = zod.object({
+  "message": zod.string()
+})
+
+
+/**
+ * @summary List accounts (administrator only)
+ */
+export const GetUsersQueryParams = zod.object({
+  "search": zod.coerce.string().optional(),
+  "role": zod.enum(['admin', 'mystery_shopper', 'reviewer', 'regional_executive']).optional(),
+  "accountStatus": zod.enum(['active', 'inactive']).optional()
+})
+
+export const GetUsersResponseItem = zod.object({
+  "id": zod.number().int(),
+  "fullName": zod.string(),
+  "email": zod.string(),
+  "role": zod.enum(['admin', 'mystery_shopper', 'reviewer', 'regional_executive']),
+  "accountStatus": zod.enum(['active', 'inactive']),
+  "region": zod.string().nullable(),
+  "shopperId": zod.number().int().nullable(),
+  "lastLoginAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const GetUsersResponse = zod.array(GetUsersResponseItem)
+
+
+/**
+ * @summary Create an administrator, reviewer or regional executive account
+ */
+
+export const createUserBodyPasswordMin = 8;
+
+
+
+export const CreateUserBody = zod.object({
+  "fullName": zod.string().min(1),
+  "email": zod.string().email(),
+  "password": zod.string().min(createUserBodyPasswordMin),
+  "role": zod.enum(['admin', 'mystery_shopper', 'reviewer', 'regional_executive']),
+  "region": zod.string().nullish()
+})
+
+export const CreateUserResponse = zod.object({
+  "id": zod.number().int(),
+  "fullName": zod.string(),
+  "email": zod.string(),
+  "role": zod.enum(['admin', 'mystery_shopper', 'reviewer', 'regional_executive']),
+  "accountStatus": zod.enum(['active', 'inactive']),
+  "region": zod.string().nullable(),
+  "shopperId": zod.number().int().nullable(),
+  "lastLoginAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update role, status, region or credentials
+ */
+export const UpdateUserParams = zod.object({
+  "userId": zod.coerce.number().int()
+})
+
+
+export const updateUserBodyPasswordMin = 8;
+
+
+
+export const UpdateUserBody = zod.object({
+  "fullName": zod.string().min(1).optional(),
+  "email": zod.string().email().optional(),
+  "password": zod.string().min(updateUserBodyPasswordMin).optional(),
+  "role": zod.enum(['admin', 'mystery_shopper', 'reviewer', 'regional_executive']).optional(),
+  "accountStatus": zod.enum(['active', 'inactive']).optional(),
+  "region": zod.string().nullish()
+})
+
+export const UpdateUserResponse = zod.object({
+  "id": zod.number().int(),
+  "fullName": zod.string(),
+  "email": zod.string(),
+  "role": zod.enum(['admin', 'mystery_shopper', 'reviewer', 'regional_executive']),
+  "accountStatus": zod.enum(['active', 'inactive']),
+  "region": zod.string().nullable(),
+  "shopperId": zod.number().int().nullable(),
+  "lastLoginAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete an account
+ */
+export const DeleteUserParams = zod.object({
+  "userId": zod.coerce.number().int()
+})
+
+export const DeleteUserResponse = zod.void()
+
+
+/**
+ * @summary Dashboard metrics for the signed-in mystery shopper
+ */
+export const GetShopperOverviewResponse = zod.object({
+  "openAssignments": zod.number().int(),
+  "draftsInProgress": zod.number().int(),
+  "awaitingReview": zod.number().int(),
+  "approved": zod.number().int(),
+  "needsCorrection": zod.number().int(),
+  "rejected": zod.number().int(),
+  "averageScore": zod.number().nullable(),
+  "upcomingTasks": zod.array(zod.object({
+  "id": zod.number().int(),
+  "storeId": zod.number().int(),
+  "shopperId": zod.number().int().nullable(),
+  "questionnaireId": zod.number().int().nullable(),
+  "visitDate": zod.coerce.date(),
+  "dueDate": zod.coerce.date(),
+  "instructions": zod.string(),
+  "priority": zod.enum(['low', 'medium', 'high', 'urgent']),
+  "status": zod.enum(['draft', 'assigned', 'in_progress', 'submitted', 'under_review', 'approved', 'rejected', 'needs_correction', 'cancelled']),
+  "storeName": zod.string(),
+  "storeCode": zod.string(),
+  "shopperName": zod.string().nullable(),
+  "questionnaireTitle": zod.string().nullable(),
+  "submittedAt": zod.coerce.date().nullable(),
+  "reviewerComment": zod.string().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "recentSubmissions": zod.array(zod.object({
+  "id": zod.number().int(),
+  "taskId": zod.number().int(),
+  "shopperId": zod.number().int(),
+  "shopperName": zod.string().nullable(),
+  "storeId": zod.number().int(),
+  "storeName": zod.string(),
+  "storeCode": zod.string(),
+  "storeRegion": zod.string(),
+  "storeCity": zod.string(),
+  "visitDate": zod.coerce.date(),
+  "dueDate": zod.coerce.date(),
+  "status": zod.enum(['draft', 'submitted', 'under_review', 'approved', 'rejected', 'needs_correction']),
+  "score": zod.number().nullable(),
+  "comment": zod.string().nullable(),
+  "evidenceCount": zod.number().int(),
+  "submittedAt": zod.coerce.date().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "reviewerName": zod.string().nullable(),
+  "reviewerComment": zod.string().nullable(),
+  "canEdit": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary List reports visible to the current role
+ */
+export const GetSubmissionsQueryParams = zod.object({
+  "search": zod.coerce.string().optional(),
+  "status": zod.enum(['draft', 'submitted', 'under_review', 'approved', 'rejected', 'needs_correction']).optional(),
+  "storeId": zod.coerce.number().int().optional(),
+  "from": zod.date().optional(),
+  "to": zod.date().optional()
+})
+
+export const GetSubmissionsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "taskId": zod.number().int(),
+  "shopperId": zod.number().int(),
+  "shopperName": zod.string().nullable(),
+  "storeId": zod.number().int(),
+  "storeName": zod.string(),
+  "storeCode": zod.string(),
+  "storeRegion": zod.string(),
+  "storeCity": zod.string(),
+  "visitDate": zod.coerce.date(),
+  "dueDate": zod.coerce.date(),
+  "status": zod.enum(['draft', 'submitted', 'under_review', 'approved', 'rejected', 'needs_correction']),
+  "score": zod.number().nullable(),
+  "comment": zod.string().nullable(),
+  "evidenceCount": zod.number().int(),
+  "submittedAt": zod.coerce.date().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "reviewerName": zod.string().nullable(),
+  "reviewerComment": zod.string().nullable(),
+  "canEdit": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const GetSubmissionsResponse = zod.array(GetSubmissionsResponseItem)
+
+
+/**
+ * @summary Start (or resume) the report for one of my assignments
+ */
+export const CreateSubmissionBody = zod.object({
+  "taskId": zod.number().int()
+})
+
+export const CreateSubmissionResponse = zod.object({
+  "id": zod.number().int(),
+  "taskId": zod.number().int(),
+  "shopperId": zod.number().int(),
+  "shopperName": zod.string().nullable(),
+  "storeId": zod.number().int(),
+  "storeName": zod.string(),
+  "storeCode": zod.string(),
+  "storeRegion": zod.string(),
+  "storeCity": zod.string(),
+  "visitDate": zod.coerce.date(),
+  "dueDate": zod.coerce.date(),
+  "instructions": zod.string(),
+  "questionnaireId": zod.number().int().nullable(),
+  "questionnaireTitle": zod.string().nullable(),
+  "status": zod.enum(['draft', 'submitted', 'under_review', 'approved', 'rejected', 'needs_correction']),
+  "score": zod.number().nullable(),
+  "comment": zod.string().nullable(),
+  "evidenceCount": zod.number().int(),
+  "submittedAt": zod.coerce.date().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "reviewerName": zod.string().nullable(),
+  "reviewerComment": zod.string().nullable(),
+  "canEdit": zod.boolean(),
+  "questions": zod.array(zod.object({
+  "id": zod.number().int(),
+  "questionId": zod.number().int().nullable(),
+  "prompt": zod.string(),
+  "type": zod.enum(['text', 'single_choice', 'yes_no', 'rating']),
+  "required": zod.boolean(),
+  "position": zod.number().int(),
+  "options": zod.array(zod.string()),
+  "valueText": zod.string().nullable(),
+  "valueNumber": zod.number().nullable(),
+  "valueBoolean": zod.boolean().nullable()
+})),
+  "evidence": zod.array(zod.object({
+  "id": zod.number().int(),
+  "fileName": zod.string(),
+  "mimeType": zod.string(),
+  "byteSize": zod.number().int(),
+  "caption": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "url": zod.string()
+})),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Submission history for the signed-in shopper
+ */
+export const GetMySubmissionsQueryParams = zod.object({
+  "status": zod.enum(['draft', 'submitted', 'under_review', 'approved', 'rejected', 'needs_correction']).optional()
+})
+
+export const GetMySubmissionsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "taskId": zod.number().int(),
+  "shopperId": zod.number().int(),
+  "shopperName": zod.string().nullable(),
+  "storeId": zod.number().int(),
+  "storeName": zod.string(),
+  "storeCode": zod.string(),
+  "storeRegion": zod.string(),
+  "storeCity": zod.string(),
+  "visitDate": zod.coerce.date(),
+  "dueDate": zod.coerce.date(),
+  "status": zod.enum(['draft', 'submitted', 'under_review', 'approved', 'rejected', 'needs_correction']),
+  "score": zod.number().nullable(),
+  "comment": zod.string().nullable(),
+  "evidenceCount": zod.number().int(),
+  "submittedAt": zod.coerce.date().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "reviewerName": zod.string().nullable(),
+  "reviewerComment": zod.string().nullable(),
+  "canEdit": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const GetMySubmissionsResponse = zod.array(GetMySubmissionsResponseItem)
+
+
+/**
+ * @summary Report detail with answers and evidence
+ */
+export const GetSubmissionParams = zod.object({
+  "submissionId": zod.coerce.number().int()
+})
+
+export const GetSubmissionResponse = zod.object({
+  "id": zod.number().int(),
+  "taskId": zod.number().int(),
+  "shopperId": zod.number().int(),
+  "shopperName": zod.string().nullable(),
+  "storeId": zod.number().int(),
+  "storeName": zod.string(),
+  "storeCode": zod.string(),
+  "storeRegion": zod.string(),
+  "storeCity": zod.string(),
+  "visitDate": zod.coerce.date(),
+  "dueDate": zod.coerce.date(),
+  "instructions": zod.string(),
+  "questionnaireId": zod.number().int().nullable(),
+  "questionnaireTitle": zod.string().nullable(),
+  "status": zod.enum(['draft', 'submitted', 'under_review', 'approved', 'rejected', 'needs_correction']),
+  "score": zod.number().nullable(),
+  "comment": zod.string().nullable(),
+  "evidenceCount": zod.number().int(),
+  "submittedAt": zod.coerce.date().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "reviewerName": zod.string().nullable(),
+  "reviewerComment": zod.string().nullable(),
+  "canEdit": zod.boolean(),
+  "questions": zod.array(zod.object({
+  "id": zod.number().int(),
+  "questionId": zod.number().int().nullable(),
+  "prompt": zod.string(),
+  "type": zod.enum(['text', 'single_choice', 'yes_no', 'rating']),
+  "required": zod.boolean(),
+  "position": zod.number().int(),
+  "options": zod.array(zod.string()),
+  "valueText": zod.string().nullable(),
+  "valueNumber": zod.number().nullable(),
+  "valueBoolean": zod.boolean().nullable()
+})),
+  "evidence": zod.array(zod.object({
+  "id": zod.number().int(),
+  "fileName": zod.string(),
+  "mimeType": zod.string(),
+  "byteSize": zod.number().int(),
+  "caption": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "url": zod.string()
+})),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Save answers and comments without submitting
+ */
+export const SaveSubmissionDraftParams = zod.object({
+  "submissionId": zod.coerce.number().int()
+})
+
+export const SaveSubmissionDraftBody = zod.object({
+  "comment": zod.string().nullish(),
+  "answers": zod.array(zod.object({
+  "questionId": zod.number().int(),
+  "valueText": zod.string().nullish(),
+  "valueNumber": zod.number().nullish(),
+  "valueBoolean": zod.boolean().nullish()
+}))
+})
+
+export const SaveSubmissionDraftResponse = zod.object({
+  "id": zod.number().int(),
+  "taskId": zod.number().int(),
+  "shopperId": zod.number().int(),
+  "shopperName": zod.string().nullable(),
+  "storeId": zod.number().int(),
+  "storeName": zod.string(),
+  "storeCode": zod.string(),
+  "storeRegion": zod.string(),
+  "storeCity": zod.string(),
+  "visitDate": zod.coerce.date(),
+  "dueDate": zod.coerce.date(),
+  "instructions": zod.string(),
+  "questionnaireId": zod.number().int().nullable(),
+  "questionnaireTitle": zod.string().nullable(),
+  "status": zod.enum(['draft', 'submitted', 'under_review', 'approved', 'rejected', 'needs_correction']),
+  "score": zod.number().nullable(),
+  "comment": zod.string().nullable(),
+  "evidenceCount": zod.number().int(),
+  "submittedAt": zod.coerce.date().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "reviewerName": zod.string().nullable(),
+  "reviewerComment": zod.string().nullable(),
+  "canEdit": zod.boolean(),
+  "questions": zod.array(zod.object({
+  "id": zod.number().int(),
+  "questionId": zod.number().int().nullable(),
+  "prompt": zod.string(),
+  "type": zod.enum(['text', 'single_choice', 'yes_no', 'rating']),
+  "required": zod.boolean(),
+  "position": zod.number().int(),
+  "options": zod.array(zod.string()),
+  "valueText": zod.string().nullable(),
+  "valueNumber": zod.number().nullable(),
+  "valueBoolean": zod.boolean().nullable()
+})),
+  "evidence": zod.array(zod.object({
+  "id": zod.number().int(),
+  "fileName": zod.string(),
+  "mimeType": zod.string(),
+  "byteSize": zod.number().int(),
+  "caption": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "url": zod.string()
+})),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Submit a report for review
+ */
+export const SubmitSubmissionParams = zod.object({
+  "submissionId": zod.coerce.number().int()
+})
+
+export const SubmitSubmissionBody = zod.object({
+  "comment": zod.string().nullish(),
+  "answers": zod.array(zod.object({
+  "questionId": zod.number().int(),
+  "valueText": zod.string().nullish(),
+  "valueNumber": zod.number().nullish(),
+  "valueBoolean": zod.boolean().nullish()
+}))
+})
+
+export const SubmitSubmissionResponse = zod.object({
+  "id": zod.number().int(),
+  "taskId": zod.number().int(),
+  "shopperId": zod.number().int(),
+  "shopperName": zod.string().nullable(),
+  "storeId": zod.number().int(),
+  "storeName": zod.string(),
+  "storeCode": zod.string(),
+  "storeRegion": zod.string(),
+  "storeCity": zod.string(),
+  "visitDate": zod.coerce.date(),
+  "dueDate": zod.coerce.date(),
+  "instructions": zod.string(),
+  "questionnaireId": zod.number().int().nullable(),
+  "questionnaireTitle": zod.string().nullable(),
+  "status": zod.enum(['draft', 'submitted', 'under_review', 'approved', 'rejected', 'needs_correction']),
+  "score": zod.number().nullable(),
+  "comment": zod.string().nullable(),
+  "evidenceCount": zod.number().int(),
+  "submittedAt": zod.coerce.date().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "reviewerName": zod.string().nullable(),
+  "reviewerComment": zod.string().nullable(),
+  "canEdit": zod.boolean(),
+  "questions": zod.array(zod.object({
+  "id": zod.number().int(),
+  "questionId": zod.number().int().nullable(),
+  "prompt": zod.string(),
+  "type": zod.enum(['text', 'single_choice', 'yes_no', 'rating']),
+  "required": zod.boolean(),
+  "position": zod.number().int(),
+  "options": zod.array(zod.string()),
+  "valueText": zod.string().nullable(),
+  "valueNumber": zod.number().nullable(),
+  "valueBoolean": zod.boolean().nullable()
+})),
+  "evidence": zod.array(zod.object({
+  "id": zod.number().int(),
+  "fileName": zod.string(),
+  "mimeType": zod.string(),
+  "byteSize": zod.number().int(),
+  "caption": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "url": zod.string()
+})),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Attach a photo to a report
+ */
+export const AddSubmissionEvidenceParams = zod.object({
+  "submissionId": zod.coerce.number().int()
+})
+
+
+
+
+
+
+export const AddSubmissionEvidenceBody = zod.object({
+  "fileName": zod.string().min(1),
+  "mimeType": zod.string().min(1),
+  "data": zod.string().min(1),
+  "caption": zod.string().nullish()
+})
+
+export const AddSubmissionEvidenceResponse = zod.object({
+  "id": zod.number().int(),
+  "taskId": zod.number().int(),
+  "shopperId": zod.number().int(),
+  "shopperName": zod.string().nullable(),
+  "storeId": zod.number().int(),
+  "storeName": zod.string(),
+  "storeCode": zod.string(),
+  "storeRegion": zod.string(),
+  "storeCity": zod.string(),
+  "visitDate": zod.coerce.date(),
+  "dueDate": zod.coerce.date(),
+  "instructions": zod.string(),
+  "questionnaireId": zod.number().int().nullable(),
+  "questionnaireTitle": zod.string().nullable(),
+  "status": zod.enum(['draft', 'submitted', 'under_review', 'approved', 'rejected', 'needs_correction']),
+  "score": zod.number().nullable(),
+  "comment": zod.string().nullable(),
+  "evidenceCount": zod.number().int(),
+  "submittedAt": zod.coerce.date().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "reviewerName": zod.string().nullable(),
+  "reviewerComment": zod.string().nullable(),
+  "canEdit": zod.boolean(),
+  "questions": zod.array(zod.object({
+  "id": zod.number().int(),
+  "questionId": zod.number().int().nullable(),
+  "prompt": zod.string(),
+  "type": zod.enum(['text', 'single_choice', 'yes_no', 'rating']),
+  "required": zod.boolean(),
+  "position": zod.number().int(),
+  "options": zod.array(zod.string()),
+  "valueText": zod.string().nullable(),
+  "valueNumber": zod.number().nullable(),
+  "valueBoolean": zod.boolean().nullable()
+})),
+  "evidence": zod.array(zod.object({
+  "id": zod.number().int(),
+  "fileName": zod.string(),
+  "mimeType": zod.string(),
+  "byteSize": zod.number().int(),
+  "caption": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "url": zod.string()
+})),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Remove a photo from a report
+ */
+export const DeleteSubmissionEvidenceParams = zod.object({
+  "submissionId": zod.coerce.number().int(),
+  "evidenceId": zod.coerce.number().int()
+})
+
+export const DeleteSubmissionEvidenceResponse = zod.object({
+  "id": zod.number().int(),
+  "taskId": zod.number().int(),
+  "shopperId": zod.number().int(),
+  "shopperName": zod.string().nullable(),
+  "storeId": zod.number().int(),
+  "storeName": zod.string(),
+  "storeCode": zod.string(),
+  "storeRegion": zod.string(),
+  "storeCity": zod.string(),
+  "visitDate": zod.coerce.date(),
+  "dueDate": zod.coerce.date(),
+  "instructions": zod.string(),
+  "questionnaireId": zod.number().int().nullable(),
+  "questionnaireTitle": zod.string().nullable(),
+  "status": zod.enum(['draft', 'submitted', 'under_review', 'approved', 'rejected', 'needs_correction']),
+  "score": zod.number().nullable(),
+  "comment": zod.string().nullable(),
+  "evidenceCount": zod.number().int(),
+  "submittedAt": zod.coerce.date().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "reviewerName": zod.string().nullable(),
+  "reviewerComment": zod.string().nullable(),
+  "canEdit": zod.boolean(),
+  "questions": zod.array(zod.object({
+  "id": zod.number().int(),
+  "questionId": zod.number().int().nullable(),
+  "prompt": zod.string(),
+  "type": zod.enum(['text', 'single_choice', 'yes_no', 'rating']),
+  "required": zod.boolean(),
+  "position": zod.number().int(),
+  "options": zod.array(zod.string()),
+  "valueText": zod.string().nullable(),
+  "valueNumber": zod.number().nullable(),
+  "valueBoolean": zod.boolean().nullable()
+})),
+  "evidence": zod.array(zod.object({
+  "id": zod.number().int(),
+  "fileName": zod.string(),
+  "mimeType": zod.string(),
+  "byteSize": zod.number().int(),
+  "caption": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "url": zod.string()
+})),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Download the stored photo
+ */
+export const GetSubmissionEvidenceFileParams = zod.object({
+  "submissionId": zod.coerce.number().int(),
+  "evidenceId": zod.coerce.number().int()
+})
+
+export const GetSubmissionEvidenceFileResponse = zod.unknown()
+
+
+/**
+ * @summary Dashboard metrics for reviewers
+ */
+export const GetReviewOverviewResponse = zod.object({
+  "awaitingReview": zod.number().int(),
+  "inReview": zod.number().int(),
+  "approved": zod.number().int(),
+  "rejected": zod.number().int(),
+  "needsCorrection": zod.number().int(),
+  "averageScore": zod.number().nullable(),
+  "recentDecisions": zod.array(zod.object({
+  "id": zod.number().int(),
+  "taskId": zod.number().int(),
+  "shopperId": zod.number().int(),
+  "shopperName": zod.string().nullable(),
+  "storeId": zod.number().int(),
+  "storeName": zod.string(),
+  "storeCode": zod.string(),
+  "storeRegion": zod.string(),
+  "storeCity": zod.string(),
+  "visitDate": zod.coerce.date(),
+  "dueDate": zod.coerce.date(),
+  "status": zod.enum(['draft', 'submitted', 'under_review', 'approved', 'rejected', 'needs_correction']),
+  "score": zod.number().nullable(),
+  "comment": zod.string().nullable(),
+  "evidenceCount": zod.number().int(),
+  "submittedAt": zod.coerce.date().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "reviewerName": zod.string().nullable(),
+  "reviewerComment": zod.string().nullable(),
+  "canEdit": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Reports waiting for a review decision
+ */
+export const GetReviewQueueQueryParams = zod.object({
+  "search": zod.coerce.string().optional(),
+  "status": zod.enum(['draft', 'submitted', 'under_review', 'approved', 'rejected', 'needs_correction']).optional()
+})
+
+export const GetReviewQueueResponseItem = zod.object({
+  "id": zod.number().int(),
+  "taskId": zod.number().int(),
+  "shopperId": zod.number().int(),
+  "shopperName": zod.string().nullable(),
+  "storeId": zod.number().int(),
+  "storeName": zod.string(),
+  "storeCode": zod.string(),
+  "storeRegion": zod.string(),
+  "storeCity": zod.string(),
+  "visitDate": zod.coerce.date(),
+  "dueDate": zod.coerce.date(),
+  "status": zod.enum(['draft', 'submitted', 'under_review', 'approved', 'rejected', 'needs_correction']),
+  "score": zod.number().nullable(),
+  "comment": zod.string().nullable(),
+  "evidenceCount": zod.number().int(),
+  "submittedAt": zod.coerce.date().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "reviewerName": zod.string().nullable(),
+  "reviewerComment": zod.string().nullable(),
+  "canEdit": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const GetReviewQueueResponse = zod.array(GetReviewQueueResponseItem)
+
+
+/**
+ * @summary Reports that already received a decision
+ */
+export const GetReviewHistoryQueryParams = zod.object({
+  "search": zod.coerce.string().optional(),
+  "status": zod.enum(['draft', 'submitted', 'under_review', 'approved', 'rejected', 'needs_correction']).optional(),
+  "from": zod.date().optional(),
+  "to": zod.date().optional()
+})
+
+export const GetReviewHistoryResponseItem = zod.object({
+  "id": zod.number().int(),
+  "taskId": zod.number().int(),
+  "shopperId": zod.number().int(),
+  "shopperName": zod.string().nullable(),
+  "storeId": zod.number().int(),
+  "storeName": zod.string(),
+  "storeCode": zod.string(),
+  "storeRegion": zod.string(),
+  "storeCity": zod.string(),
+  "visitDate": zod.coerce.date(),
+  "dueDate": zod.coerce.date(),
+  "status": zod.enum(['draft', 'submitted', 'under_review', 'approved', 'rejected', 'needs_correction']),
+  "score": zod.number().nullable(),
+  "comment": zod.string().nullable(),
+  "evidenceCount": zod.number().int(),
+  "submittedAt": zod.coerce.date().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "reviewerName": zod.string().nullable(),
+  "reviewerComment": zod.string().nullable(),
+  "canEdit": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const GetReviewHistoryResponse = zod.array(GetReviewHistoryResponseItem)
+
+
+/**
+ * @summary Approve, reject, request correction or mark under review
+ */
+export const DecideReviewParams = zod.object({
+  "submissionId": zod.coerce.number().int()
+})
+
+export const DecideReviewBody = zod.object({
+  "status": zod.enum(['under_review', 'approved', 'rejected', 'needs_correction']),
+  "comment": zod.string().nullish()
+})
+
+export const DecideReviewResponse = zod.object({
+  "id": zod.number().int(),
+  "taskId": zod.number().int(),
+  "shopperId": zod.number().int(),
+  "shopperName": zod.string().nullable(),
+  "storeId": zod.number().int(),
+  "storeName": zod.string(),
+  "storeCode": zod.string(),
+  "storeRegion": zod.string(),
+  "storeCity": zod.string(),
+  "visitDate": zod.coerce.date(),
+  "dueDate": zod.coerce.date(),
+  "instructions": zod.string(),
+  "questionnaireId": zod.number().int().nullable(),
+  "questionnaireTitle": zod.string().nullable(),
+  "status": zod.enum(['draft', 'submitted', 'under_review', 'approved', 'rejected', 'needs_correction']),
+  "score": zod.number().nullable(),
+  "comment": zod.string().nullable(),
+  "evidenceCount": zod.number().int(),
+  "submittedAt": zod.coerce.date().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "reviewerName": zod.string().nullable(),
+  "reviewerComment": zod.string().nullable(),
+  "canEdit": zod.boolean(),
+  "questions": zod.array(zod.object({
+  "id": zod.number().int(),
+  "questionId": zod.number().int().nullable(),
+  "prompt": zod.string(),
+  "type": zod.enum(['text', 'single_choice', 'yes_no', 'rating']),
+  "required": zod.boolean(),
+  "position": zod.number().int(),
+  "options": zod.array(zod.string()),
+  "valueText": zod.string().nullable(),
+  "valueNumber": zod.number().nullable(),
+  "valueBoolean": zod.boolean().nullable()
+})),
+  "evidence": zod.array(zod.object({
+  "id": zod.number().int(),
+  "fileName": zod.string(),
+  "mimeType": zod.string(),
+  "byteSize": zod.number().int(),
+  "caption": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "url": zod.string()
+})),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Scorecards, trends and rankings for the executive region
+ */
+export const GetRegionalOverviewResponse = zod.object({
+  "region": zod.string().nullable(),
+  "stores": zod.number().int(),
+  "approvedReports": zod.number().int(),
+  "pendingReports": zod.number().int(),
+  "needsCorrection": zod.number().int(),
+  "averageScore": zod.number().nullable(),
+  "networkAverageScore": zod.number().nullable(),
+  "trend": zod.array(zod.object({
+  "month": zod.string(),
+  "reports": zod.number().int(),
+  "averageScore": zod.number().nullable()
+})),
+  "topStores": zod.array(zod.object({
+  "storeId": zod.number().int(),
+  "storeName": zod.string(),
+  "storeCode": zod.string(),
+  "brandName": zod.string(),
+  "region": zod.string(),
+  "city": zod.string(),
+  "visits": zod.number().int(),
+  "averageScore": zod.number().nullable(),
+  "lastVisitDate": zod.coerce.date().nullable(),
+  "lastScore": zod.number().nullable(),
+  "previousScore": zod.number().nullable(),
+  "trend": zod.number().nullable()
+})),
+  "focusStores": zod.array(zod.object({
+  "storeId": zod.number().int(),
+  "storeName": zod.string(),
+  "storeCode": zod.string(),
+  "brandName": zod.string(),
+  "region": zod.string(),
+  "city": zod.string(),
+  "visits": zod.number().int(),
+  "averageScore": zod.number().nullable(),
+  "lastVisitDate": zod.coerce.date().nullable(),
+  "lastScore": zod.number().nullable(),
+  "previousScore": zod.number().nullable(),
+  "trend": zod.number().nullable()
+})),
+  "recentReports": zod.array(zod.object({
+  "id": zod.number().int(),
+  "taskId": zod.number().int(),
+  "shopperId": zod.number().int(),
+  "shopperName": zod.string().nullable(),
+  "storeId": zod.number().int(),
+  "storeName": zod.string(),
+  "storeCode": zod.string(),
+  "storeRegion": zod.string(),
+  "storeCity": zod.string(),
+  "visitDate": zod.coerce.date(),
+  "dueDate": zod.coerce.date(),
+  "status": zod.enum(['draft', 'submitted', 'under_review', 'approved', 'rejected', 'needs_correction']),
+  "score": zod.number().nullable(),
+  "comment": zod.string().nullable(),
+  "evidenceCount": zod.number().int(),
+  "submittedAt": zod.coerce.date().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "reviewerName": zod.string().nullable(),
+  "reviewerComment": zod.string().nullable(),
+  "canEdit": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Per-store scorecards built from approved reports only
+ */
+export const GetRegionalScorecardsQueryParams = zod.object({
+  "search": zod.coerce.string().optional()
+})
+
+export const GetRegionalScorecardsResponseItem = zod.object({
+  "storeId": zod.number().int(),
+  "storeName": zod.string(),
+  "storeCode": zod.string(),
+  "brandName": zod.string(),
+  "region": zod.string(),
+  "city": zod.string(),
+  "visits": zod.number().int(),
+  "averageScore": zod.number().nullable(),
+  "lastVisitDate": zod.coerce.date().nullable(),
+  "lastScore": zod.number().nullable(),
+  "previousScore": zod.number().nullable(),
+  "trend": zod.number().nullable()
+})
+export const GetRegionalScorecardsResponse = zod.array(GetRegionalScorecardsResponseItem)
+
+
+/**
+ * @summary Compare stores inside the region against the network average
+ */
+export const GetRegionalComparisonResponse = zod.object({
+  "region": zod.string().nullable(),
+  "stores": zod.number().int(),
+  "visits": zod.number().int(),
+  "averageScore": zod.number().nullable(),
+  "networkAverageScore": zod.number().nullable(),
+  "topStore": zod.object({
+  "storeId": zod.number().int(),
+  "storeName": zod.string(),
+  "storeCode": zod.string(),
+  "brandName": zod.string(),
+  "region": zod.string(),
+  "city": zod.string(),
+  "visits": zod.number().int(),
+  "averageScore": zod.number().nullable(),
+  "lastVisitDate": zod.coerce.date().nullable(),
+  "lastScore": zod.number().nullable(),
+  "previousScore": zod.number().nullable(),
+  "trend": zod.number().nullable()
+}).optional(),
+  "bottomStore": zod.object({
+  "storeId": zod.number().int(),
+  "storeName": zod.string(),
+  "storeCode": zod.string(),
+  "brandName": zod.string(),
+  "region": zod.string(),
+  "city": zod.string(),
+  "visits": zod.number().int(),
+  "averageScore": zod.number().nullable(),
+  "lastVisitDate": zod.coerce.date().nullable(),
+  "lastScore": zod.number().nullable(),
+  "previousScore": zod.number().nullable(),
+  "trend": zod.number().nullable()
+}).optional(),
+  "scorecards": zod.array(zod.object({
+  "storeId": zod.number().int(),
+  "storeName": zod.string(),
+  "storeCode": zod.string(),
+  "brandName": zod.string(),
+  "region": zod.string(),
+  "city": zod.string(),
+  "visits": zod.number().int(),
+  "averageScore": zod.number().nullable(),
+  "lastVisitDate": zod.coerce.date().nullable(),
+  "lastScore": zod.number().nullable(),
+  "previousScore": zod.number().nullable(),
+  "trend": zod.number().nullable()
+}))
+})
+
+
+/**
+ * @summary Monthly performance trend for approved reports
+ */
+export const getRegionalTrendsQueryMonthsMin = 3;
+export const getRegionalTrendsQueryMonthsMax = 24;
+
+
+
+export const GetRegionalTrendsQueryParams = zod.object({
+  "months": zod.coerce.number().int().min(getRegionalTrendsQueryMonthsMin).max(getRegionalTrendsQueryMonthsMax).optional()
+})
+
+export const GetRegionalTrendsResponseItem = zod.object({
+  "month": zod.string(),
+  "reports": zod.number().int(),
+  "averageScore": zod.number().nullable()
+})
+export const GetRegionalTrendsResponse = zod.array(GetRegionalTrendsResponseItem)
+
+
+/**
+ * @summary CSV export of scorecards or approved reports for the region
+ */
+export const ExportRegionalDataQueryParams = zod.object({
+  "dataset": zod.enum(['scorecards', 'reports', 'trends']),
+  "from": zod.date().optional(),
+  "to": zod.date().optional()
+})
+
+export const ExportRegionalDataResponse = zod.unknown()
+
+
+/**
+ * @summary Organization profile
+ */
+export const GetOrganizationResponse = zod.object({
+  "name": zod.string(),
+  "contactEmail": zod.string().nullable(),
+  "phone": zod.string().nullable(),
+  "address": zod.string().nullable(),
+  "website": zod.string().nullable(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update the organization profile (administrator only)
+ */
+
+
+
+export const UpdateOrganizationBody = zod.object({
+  "name": zod.string().min(1),
+  "contactEmail": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "address": zod.string().nullish(),
+  "website": zod.string().nullish()
+})
+
+export const UpdateOrganizationResponse = zod.object({
+  "name": zod.string(),
+  "contactEmail": zod.string().nullable(),
+  "phone": zod.string().nullable(),
+  "address": zod.string().nullable(),
+  "website": zod.string().nullable(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Display and notification preferences for the signed-in account
+ */
+export const GetPreferencesResponse = zod.object({
+  "timezone": zod.string(),
+  "dateFormat": zod.enum(['MMM d, yyyy', 'dd/MM/yyyy', 'MM/dd/yyyy', 'yyyy-MM-dd']),
+  "timeFormat": zod.enum(['12h', '24h']),
+  "emailNotifications": zod.boolean(),
+  "weeklyDigest": zod.boolean()
+})
+
+
+/**
+ * @summary Save display and notification preferences
+ */
+export const updatePreferencesBodyTimezoneMax = 64;
+
+
+
+export const UpdatePreferencesBody = zod.object({
+  "timezone": zod.string().min(1).max(updatePreferencesBodyTimezoneMax),
+  "dateFormat": zod.enum(['MMM d, yyyy', 'dd/MM/yyyy', 'MM/dd/yyyy', 'yyyy-MM-dd']),
+  "timeFormat": zod.enum(['12h', '24h']),
+  "emailNotifications": zod.boolean(),
+  "weeklyDigest": zod.boolean()
+})
+
+export const UpdatePreferencesResponse = zod.object({
+  "timezone": zod.string(),
+  "dateFormat": zod.enum(['MMM d, yyyy', 'dd/MM/yyyy', 'MM/dd/yyyy', 'yyyy-MM-dd']),
+  "timeFormat": zod.enum(['12h', '24h']),
+  "emailNotifications": zod.boolean(),
+  "weeklyDigest": zod.boolean()
+})
+
+

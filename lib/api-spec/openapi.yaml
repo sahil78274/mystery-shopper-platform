@@ -22,11 +22,30 @@ tags:
     description: Questionnaire management
   - name: settings
     description: Browser-scoped display preferences
+  - name: auth
+    description: Sessions, registration and account security
+  - name: users
+    description: Administrator-managed accounts and role assignment
+  - name: submissions
+    description: Shopper reports, answers and evidence
+  - name: reviews
+    description: Reviewer queue and quality decisions
+  - name: shopper
+    description: Mystery shopper workspace
+  - name: regional
+    description: Regional brand executive analytics
+  - name: organization
+    description: Organization profile
+  - name: preferences
+    description: Per-account display and notification preferences
+security:
+  - bearerAuth: []
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
+      security: []
       summary: Health check
       description: Returns server health status
       responses:
@@ -40,6 +59,7 @@ paths:
     get:
       operationId: getSettingsPreferences
       tags: [settings]
+      security: []
       summary: Get browser-scoped display preferences
       responses:
         "200":
@@ -390,6 +410,608 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Questionnaire" }
         "404": { description: Questionnaire not found }
+  /auth/register:
+    post:
+      operationId: registerShopper
+      tags: [auth]
+      security: []
+      summary: Public self-registration for mystery shoppers only
+      description: >
+        Creates a mystery shopper login together with a pending shopper profile.
+        Privileged roles can only be created by an administrator through /users.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RegisterShopperInput" }
+      responses:
+        "201":
+          description: Registered account and opened session
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthSession" }
+        "400": { description: Invalid registration details }
+        "409": { description: Email already registered }
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      security: []
+      summary: Sign in and open a session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LoginInput" }
+      responses:
+        "200":
+          description: Session opened
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthSession" }
+        "401": { description: Invalid credentials or deactivated account }
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: End the current session
+      responses:
+        "204": { description: Session ended }
+  /auth/me:
+    get:
+      operationId: getAuthSession
+      tags: [auth]
+      summary: Current signed-in account
+      responses:
+        "200":
+          description: The signed-in account
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthUser" }
+        "401": { description: Not signed in }
+    patch:
+      operationId: updateAuthProfile
+      tags: [auth]
+      summary: Update the signed-in account profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateProfileInput" }
+      responses:
+        "200":
+          description: Updated account
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthUser" }
+        "400": { description: Invalid profile details }
+        "409": { description: Email already in use }
+  /auth/password:
+    post:
+      operationId: changePassword
+      tags: [auth]
+      summary: Change the signed-in account password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ChangePasswordInput" }
+      responses:
+        "200":
+          description: Password changed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageResponse" }
+        "400": { description: Current password is wrong or the new one is too weak }
+  /users:
+    get:
+      operationId: getUsers
+      tags: [users]
+      summary: List accounts (administrator only)
+      parameters:
+        - name: search
+          in: query
+          schema: { type: string }
+        - name: role
+          in: query
+          schema: { $ref: "#/components/schemas/UserRole" }
+        - name: accountStatus
+          in: query
+          schema: { $ref: "#/components/schemas/AccountStatus" }
+      responses:
+        "200":
+          description: Account list
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/User" }
+        "403": { description: Administrator access required }
+    post:
+      operationId: createUser
+      tags: [users]
+      summary: Create an administrator, reviewer or regional executive account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UserInput" }
+      responses:
+        "201":
+          description: Created account
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+        "400": { description: Invalid account details }
+        "409": { description: Email already in use }
+  /users/{userId}:
+    parameters:
+      - name: userId
+        in: path
+        required: true
+        schema: { type: integer }
+    patch:
+      operationId: updateUser
+      tags: [users]
+      summary: Update role, status, region or credentials
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UserUpdate" }
+      responses:
+        "200":
+          description: Updated account
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+        "400": { description: Invalid account details }
+        "404": { description: Account not found }
+        "409": { description: Email already in use }
+    delete:
+      operationId: deleteUser
+      tags: [users]
+      summary: Delete an account
+      responses:
+        "204": { description: Account deleted }
+        "400": { description: The last active administrator cannot be deleted }
+        "404": { description: Account not found }
+  /shopper/overview:
+    get:
+      operationId: getShopperOverview
+      tags: [shopper]
+      summary: Dashboard metrics for the signed-in mystery shopper
+      responses:
+        "200":
+          description: Shopper dashboard
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ShopperOverview" }
+        "403": { description: Mystery shopper access required }
+  /submissions:
+    get:
+      operationId: getSubmissions
+      tags: [submissions]
+      summary: List reports visible to the current role
+      parameters:
+        - name: search
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { $ref: "#/components/schemas/SubmissionStatus" }
+        - name: storeId
+          in: query
+          schema: { type: integer }
+        - name: from
+          in: query
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        "200":
+          description: Reports
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/SubmissionSummary" }
+    post:
+      operationId: createSubmission
+      tags: [submissions]
+      summary: Start (or resume) the report for one of my assignments
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateSubmissionInput" }
+      responses:
+        "201":
+          description: Report draft ready
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SubmissionDetail" }
+        "400": { description: The task cannot be reported on }
+        "403": { description: This assignment belongs to another shopper }
+        "404": { description: Task not found }
+  /submissions/mine:
+    get:
+      operationId: getMySubmissions
+      tags: [submissions]
+      summary: Submission history for the signed-in shopper
+      parameters:
+        - name: status
+          in: query
+          schema: { $ref: "#/components/schemas/SubmissionStatus" }
+      responses:
+        "200":
+          description: My reports
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/SubmissionSummary" }
+        "403": { description: Mystery shopper access required }
+  /submissions/{submissionId}:
+    parameters:
+      - name: submissionId
+        in: path
+        required: true
+        schema: { type: integer }
+    get:
+      operationId: getSubmission
+      tags: [submissions]
+      summary: Report detail with answers and evidence
+      responses:
+        "200":
+          description: Report detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SubmissionDetail" }
+        "403": { description: You cannot access this report }
+        "404": { description: Report not found }
+  /submissions/{submissionId}/draft:
+    parameters:
+      - name: submissionId
+        in: path
+        required: true
+        schema: { type: integer }
+    put:
+      operationId: saveSubmissionDraft
+      tags: [submissions]
+      summary: Save answers and comments without submitting
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SaveSubmissionInput" }
+      responses:
+        "200":
+          description: Draft saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SubmissionDetail" }
+        "400": { description: Invalid answers }
+        "403": { description: You cannot edit this report }
+        "404": { description: Report not found }
+  /submissions/{submissionId}/submit:
+    parameters:
+      - name: submissionId
+        in: path
+        required: true
+        schema: { type: integer }
+    post:
+      operationId: submitSubmission
+      tags: [submissions]
+      summary: Submit a report for review
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SaveSubmissionInput" }
+      responses:
+        "200":
+          description: Report submitted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SubmissionDetail" }
+        "400": { description: "Missing required answers, comment or evidence" }
+        "403": { description: You cannot submit this report }
+        "404": { description: Report not found }
+  /submissions/{submissionId}/evidence:
+    parameters:
+      - name: submissionId
+        in: path
+        required: true
+        schema: { type: integer }
+    post:
+      operationId: addSubmissionEvidence
+      tags: [submissions]
+      summary: Attach a photo to a report
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EvidenceInput" }
+      responses:
+        "201":
+          description: Evidence stored
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SubmissionDetail" }
+        "400": { description: Unsupported file type or the file is too large }
+        "403": { description: You cannot edit this report }
+        "404": { description: Report not found }
+  /submissions/{submissionId}/evidence/{evidenceId}:
+    parameters:
+      - name: submissionId
+        in: path
+        required: true
+        schema: { type: integer }
+      - name: evidenceId
+        in: path
+        required: true
+        schema: { type: integer }
+    delete:
+      operationId: deleteSubmissionEvidence
+      tags: [submissions]
+      summary: Remove a photo from a report
+      responses:
+        "200":
+          description: Evidence removed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SubmissionDetail" }
+        "403": { description: You cannot edit this report }
+        "404": { description: Evidence not found }
+  /submissions/{submissionId}/evidence/{evidenceId}/file:
+    parameters:
+      - name: submissionId
+        in: path
+        required: true
+        schema: { type: integer }
+      - name: evidenceId
+        in: path
+        required: true
+        schema: { type: integer }
+    get:
+      operationId: getSubmissionEvidenceFile
+      tags: [submissions]
+      summary: Download the stored photo
+      responses:
+        "200":
+          description: Image bytes
+          content:
+            image/*:
+              schema: { type: string, format: binary }
+        "403": { description: You cannot access this report }
+        "404": { description: Evidence not found }
+  /reviews/overview:
+    get:
+      operationId: getReviewOverview
+      tags: [reviews]
+      summary: Dashboard metrics for reviewers
+      responses:
+        "200":
+          description: Review dashboard
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReviewOverview" }
+        "403": { description: Reviewer access required }
+  /reviews/queue:
+    get:
+      operationId: getReviewQueue
+      tags: [reviews]
+      summary: Reports waiting for a review decision
+      parameters:
+        - name: search
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { $ref: "#/components/schemas/SubmissionStatus" }
+      responses:
+        "200":
+          description: Review queue
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/SubmissionSummary" }
+        "403": { description: Reviewer access required }
+  /reviews/history:
+    get:
+      operationId: getReviewHistory
+      tags: [reviews]
+      summary: Reports that already received a decision
+      parameters:
+        - name: search
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { $ref: "#/components/schemas/SubmissionStatus" }
+        - name: from
+          in: query
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        "200":
+          description: Review history
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/SubmissionSummary" }
+        "403": { description: Reviewer access required }
+  /reviews/{submissionId}:
+    parameters:
+      - name: submissionId
+        in: path
+        required: true
+        schema: { type: integer }
+    post:
+      operationId: decideReview
+      tags: [reviews]
+      summary: Approve, reject, request correction or mark under review
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReviewDecisionInput" }
+      responses:
+        "200":
+          description: Decision recorded
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SubmissionDetail" }
+        "400": { description: A reviewer comment is required for this outcome }
+        "403": { description: Reviewer access required }
+        "404": { description: Report not found }
+  /regional/overview:
+    get:
+      operationId: getRegionalOverview
+      tags: [regional]
+      summary: Scorecards, trends and rankings for the executive region
+      responses:
+        "200":
+          description: Regional dashboard
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RegionalOverview" }
+        "403": { description: Regional executive access required }
+  /regional/scorecards:
+    get:
+      operationId: getRegionalScorecards
+      tags: [regional]
+      summary: Per-store scorecards built from approved reports only
+      parameters:
+        - name: search
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: Store scorecards
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/StoreScorecard" }
+        "403": { description: Regional executive access required }
+  /regional/comparison:
+    get:
+      operationId: getRegionalComparison
+      tags: [regional]
+      summary: Compare stores inside the region against the network average
+      responses:
+        "200":
+          description: Regional comparison
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RegionComparison" }
+        "403": { description: Regional executive access required }
+  /regional/trends:
+    get:
+      operationId: getRegionalTrends
+      tags: [regional]
+      summary: Monthly performance trend for approved reports
+      parameters:
+        - name: months
+          in: query
+          schema: { type: integer, minimum: 3, maximum: 24 }
+      responses:
+        "200":
+          description: Monthly trend
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/TrendPoint" }
+        "403": { description: Regional executive access required }
+  /regional/export:
+    get:
+      operationId: exportRegionalData
+      tags: [regional]
+      summary: CSV export of scorecards or approved reports for the region
+      parameters:
+        - name: dataset
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [scorecards, reports, trends]
+        - name: from
+          in: query
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        "200":
+          description: CSV file
+          content:
+            text/csv:
+              schema: { type: string }
+        "403": { description: Regional executive access required }
+  /organization:
+    get:
+      operationId: getOrganization
+      tags: [organization]
+      summary: Organization profile
+      responses:
+        "200":
+          description: Organization settings
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OrganizationSettings" }
+    put:
+      operationId: updateOrganization
+      tags: [organization]
+      summary: Update the organization profile (administrator only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OrganizationSettingsInput" }
+      responses:
+        "200":
+          description: Updated organization settings
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OrganizationSettings" }
+        "400": { description: Invalid organization details }
+        "403": { description: Administrator access required }
+  /me/preferences:
+    get:
+      operationId: getPreferences
+      tags: [preferences]
+      summary: Display and notification preferences for the signed-in account
+      responses:
+        "200":
+          description: Saved preferences
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserPreferences" }
+        "401": { description: Not signed in }
+    put:
+      operationId: updatePreferences
+      tags: [preferences]
+      summary: Save display and notification preferences
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UserPreferencesInput" }
+      responses:
+        "200":
+          description: Saved preferences
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserPreferences" }
+        "400": { description: Invalid preferences }
 components:
   schemas:
     HealthStatus:
@@ -659,3 +1281,352 @@ components:
         createdAt: { type: string, format: date-time }
       required: [id, action, entityType, entityId, description, createdAt]
 
+    UserRole:
+      type: string
+      enum: [admin, mystery_shopper, reviewer, regional_executive]
+    AuthUser:
+      type: object
+      properties:
+        id: { type: integer }
+        fullName: { type: string }
+        email: { type: string }
+        role: { $ref: "#/components/schemas/UserRole" }
+        accountStatus: { $ref: "#/components/schemas/AccountStatus" }
+        region: { type: ["string", "null"] }
+        shopperId: { type: ["integer", "null"] }
+        verificationStatus: { type: ["string", "null"] }
+        lastLoginAt: { type: ["string", "null"], format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+      required: [id, fullName, email, role, accountStatus, region, shopperId, verificationStatus, lastLoginAt, createdAt, updatedAt]
+    User:
+      type: object
+      properties:
+        id: { type: integer }
+        fullName: { type: string }
+        email: { type: string }
+        role: { $ref: "#/components/schemas/UserRole" }
+        accountStatus: { $ref: "#/components/schemas/AccountStatus" }
+        region: { type: ["string", "null"] }
+        shopperId: { type: ["integer", "null"] }
+        lastLoginAt: { type: ["string", "null"], format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+      required: [id, fullName, email, role, accountStatus, region, shopperId, lastLoginAt, createdAt, updatedAt]
+    UserInput:
+      type: object
+      properties:
+        fullName: { type: string, minLength: 1 }
+        email: { type: string, format: email }
+        password: { type: string, minLength: 8 }
+        role: { $ref: "#/components/schemas/UserRole" }
+        region: { type: ["string", "null"] }
+      required: [fullName, email, password, role]
+    UserUpdate:
+      type: object
+      properties:
+        fullName: { type: string, minLength: 1 }
+        email: { type: string, format: email }
+        password: { type: string, minLength: 8 }
+        role: { $ref: "#/components/schemas/UserRole" }
+        accountStatus: { $ref: "#/components/schemas/AccountStatus" }
+        region: { type: ["string", "null"] }
+    AuthSession:
+      type: object
+      properties:
+        token: { type: string }
+        expiresAt: { type: string, format: date-time }
+        user: { $ref: "#/components/schemas/AuthUser" }
+      required: [token, expiresAt, user]
+    RegisterShopperInput:
+      type: object
+      properties:
+        fullName: { type: string, minLength: 1 }
+        email: { type: string, format: email }
+        password: { type: string, minLength: 8 }
+        phone: { type: string, minLength: 1 }
+        city: { type: string, minLength: 1 }
+        experience: { type: integer, minimum: 0 }
+      required: [fullName, email, password, phone, city]
+    LoginInput:
+      type: object
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 1 }
+      required: [email, password]
+    UpdateProfileInput:
+      type: object
+      properties:
+        fullName: { type: string, minLength: 1 }
+        email: { type: string, format: email }
+    ChangePasswordInput:
+      type: object
+      properties:
+        currentPassword: { type: string, minLength: 1 }
+        newPassword: { type: string, minLength: 8 }
+      required: [currentPassword, newPassword]
+    MessageResponse:
+      type: object
+      properties:
+        message: { type: string }
+      required: [message]
+    SubmissionStatus:
+      type: string
+      enum: [draft, submitted, under_review, approved, rejected, needs_correction]
+    SubmissionAnswerInput:
+      type: object
+      properties:
+        questionId: { type: integer }
+        valueText: { type: ["string", "null"] }
+        valueNumber: { type: ["number", "null"] }
+        valueBoolean: { type: ["boolean", "null"] }
+      required: [questionId]
+    SubmissionAnswerView:
+      type: object
+      properties:
+        id: { type: integer }
+        questionId: { type: ["integer", "null"] }
+        prompt: { type: string }
+        type: { $ref: "#/components/schemas/QuestionType" }
+        required: { type: boolean }
+        position: { type: integer }
+        options:
+          type: array
+          items: { type: string }
+        valueText: { type: ["string", "null"] }
+        valueNumber: { type: ["number", "null"] }
+        valueBoolean: { type: ["boolean", "null"] }
+      required: [id, questionId, prompt, type, required, position, options, valueText, valueNumber, valueBoolean]
+    SubmissionEvidenceView:
+      type: object
+      properties:
+        id: { type: integer }
+        fileName: { type: string }
+        mimeType: { type: string }
+        byteSize: { type: integer }
+        caption: { type: ["string", "null"] }
+        createdAt: { type: string, format: date-time }
+        url: { type: string }
+      required: [id, fileName, mimeType, byteSize, caption, createdAt, url]
+    SubmissionSummary:
+      type: object
+      properties:
+        id: { type: integer }
+        taskId: { type: integer }
+        shopperId: { type: integer }
+        shopperName: { type: ["string", "null"] }
+        storeId: { type: integer }
+        storeName: { type: string }
+        storeCode: { type: string }
+        storeRegion: { type: string }
+        storeCity: { type: string }
+        visitDate: { type: string, format: date }
+        dueDate: { type: string, format: date }
+        status: { $ref: "#/components/schemas/SubmissionStatus" }
+        score: { type: ["number", "null"] }
+        comment: { type: ["string", "null"] }
+        evidenceCount: { type: integer }
+        submittedAt: { type: ["string", "null"], format: date-time }
+        reviewedAt: { type: ["string", "null"], format: date-time }
+        reviewerName: { type: ["string", "null"] }
+        reviewerComment: { type: ["string", "null"] }
+        canEdit: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+      required: [id, taskId, shopperId, shopperName, storeId, storeName, storeCode, storeRegion, storeCity, visitDate, dueDate, status, score, comment, evidenceCount, submittedAt, reviewedAt, reviewerName, reviewerComment, canEdit, createdAt, updatedAt]
+    SubmissionDetail:
+      type: object
+      properties:
+        id: { type: integer }
+        taskId: { type: integer }
+        shopperId: { type: integer }
+        shopperName: { type: ["string", "null"] }
+        storeId: { type: integer }
+        storeName: { type: string }
+        storeCode: { type: string }
+        storeRegion: { type: string }
+        storeCity: { type: string }
+        visitDate: { type: string, format: date }
+        dueDate: { type: string, format: date }
+        instructions: { type: string }
+        questionnaireId: { type: ["integer", "null"] }
+        questionnaireTitle: { type: ["string", "null"] }
+        status: { $ref: "#/components/schemas/SubmissionStatus" }
+        score: { type: ["number", "null"] }
+        comment: { type: ["string", "null"] }
+        evidenceCount: { type: integer }
+        submittedAt: { type: ["string", "null"], format: date-time }
+        reviewedAt: { type: ["string", "null"], format: date-time }
+        reviewerName: { type: ["string", "null"] }
+        reviewerComment: { type: ["string", "null"] }
+        canEdit: { type: boolean }
+        questions:
+          type: array
+          items: { $ref: "#/components/schemas/SubmissionAnswerView" }
+        evidence:
+          type: array
+          items: { $ref: "#/components/schemas/SubmissionEvidenceView" }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+      required: [id, taskId, shopperId, shopperName, storeId, storeName, storeCode, storeRegion, storeCity, visitDate, dueDate, instructions, questionnaireId, questionnaireTitle, status, score, comment, evidenceCount, submittedAt, reviewedAt, reviewerName, reviewerComment, canEdit, questions, evidence, createdAt, updatedAt]
+    CreateSubmissionInput:
+      type: object
+      properties:
+        taskId: { type: integer }
+      required: [taskId]
+    SaveSubmissionInput:
+      type: object
+      properties:
+        comment: { type: ["string", "null"] }
+        answers:
+          type: array
+          items: { $ref: "#/components/schemas/SubmissionAnswerInput" }
+      required: [answers]
+    EvidenceInput:
+      type: object
+      properties:
+        fileName: { type: string, minLength: 1 }
+        mimeType: { type: string, minLength: 1 }
+        data: { type: string, minLength: 1 }
+        caption: { type: ["string", "null"] }
+      required: [fileName, mimeType, data]
+    ReviewDecisionInput:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [under_review, approved, rejected, needs_correction]
+        comment: { type: ["string", "null"] }
+      required: [status]
+    ShopperOverview:
+      type: object
+      properties:
+        openAssignments: { type: integer }
+        draftsInProgress: { type: integer }
+        awaitingReview: { type: integer }
+        approved: { type: integer }
+        needsCorrection: { type: integer }
+        rejected: { type: integer }
+        averageScore: { type: ["number", "null"] }
+        upcomingTasks:
+          type: array
+          items: { $ref: "#/components/schemas/Task" }
+        recentSubmissions:
+          type: array
+          items: { $ref: "#/components/schemas/SubmissionSummary" }
+      required: [openAssignments, draftsInProgress, awaitingReview, approved, needsCorrection, rejected, averageScore, upcomingTasks, recentSubmissions]
+    ReviewOverview:
+      type: object
+      properties:
+        awaitingReview: { type: integer }
+        inReview: { type: integer }
+        approved: { type: integer }
+        rejected: { type: integer }
+        needsCorrection: { type: integer }
+        averageScore: { type: ["number", "null"] }
+        recentDecisions:
+          type: array
+          items: { $ref: "#/components/schemas/SubmissionSummary" }
+      required: [awaitingReview, inReview, approved, rejected, needsCorrection, averageScore, recentDecisions]
+    StoreScorecard:
+      type: object
+      properties:
+        storeId: { type: integer }
+        storeName: { type: string }
+        storeCode: { type: string }
+        brandName: { type: string }
+        region: { type: string }
+        city: { type: string }
+        visits: { type: integer }
+        averageScore: { type: ["number", "null"] }
+        lastVisitDate: { type: ["string", "null"], format: date }
+        lastScore: { type: ["number", "null"] }
+        previousScore: { type: ["number", "null"] }
+        trend: { type: ["number", "null"] }
+      required: [storeId, storeName, storeCode, brandName, region, city, visits, averageScore, lastVisitDate, lastScore, previousScore, trend]
+    TrendPoint:
+      type: object
+      properties:
+        month: { type: string }
+        reports: { type: integer }
+        averageScore: { type: ["number", "null"] }
+      required: [month, reports, averageScore]
+    RegionComparison:
+      type: object
+      properties:
+        region: { type: ["string", "null"] }
+        stores: { type: integer }
+        visits: { type: integer }
+        averageScore: { type: ["number", "null"] }
+        networkAverageScore: { type: ["number", "null"] }
+        topStore: { $ref: "#/components/schemas/StoreScorecard" }
+        bottomStore: { $ref: "#/components/schemas/StoreScorecard" }
+        scorecards:
+          type: array
+          items: { $ref: "#/components/schemas/StoreScorecard" }
+      required: [region, stores, visits, averageScore, networkAverageScore, scorecards]
+    RegionalOverview:
+      type: object
+      properties:
+        region: { type: ["string", "null"] }
+        stores: { type: integer }
+        approvedReports: { type: integer }
+        pendingReports: { type: integer }
+        needsCorrection: { type: integer }
+        averageScore: { type: ["number", "null"] }
+        networkAverageScore: { type: ["number", "null"] }
+        trend:
+          type: array
+          items: { $ref: "#/components/schemas/TrendPoint" }
+        topStores:
+          type: array
+          items: { $ref: "#/components/schemas/StoreScorecard" }
+        focusStores:
+          type: array
+          items: { $ref: "#/components/schemas/StoreScorecard" }
+        recentReports:
+          type: array
+          items: { $ref: "#/components/schemas/SubmissionSummary" }
+      required: [region, stores, approvedReports, pendingReports, needsCorrection, averageScore, networkAverageScore, trend, topStores, focusStores, recentReports]
+    OrganizationSettings:
+      type: object
+      properties:
+        name: { type: string }
+        contactEmail: { type: ["string", "null"] }
+        phone: { type: ["string", "null"] }
+        address: { type: ["string", "null"] }
+        website: { type: ["string", "null"] }
+        updatedAt: { type: string, format: date-time }
+      required: [name, contactEmail, phone, address, website, updatedAt]
+    OrganizationSettingsInput:
+      type: object
+      properties:
+        name: { type: string, minLength: 1 }
+        contactEmail: { type: ["string", "null"] }
+        phone: { type: ["string", "null"] }
+        address: { type: ["string", "null"] }
+        website: { type: ["string", "null"] }
+      required: [name]
+    UserPreferences:
+      type: object
+      properties:
+        timezone: { type: string }
+        dateFormat: { $ref: "#/components/schemas/SettingsDateFormat" }
+        timeFormat: { $ref: "#/components/schemas/SettingsTimeFormat" }
+        emailNotifications: { type: boolean }
+        weeklyDigest: { type: boolean }
+      required: [timezone, dateFormat, timeFormat, emailNotifications, weeklyDigest]
+    UserPreferencesInput:
+      type: object
+      properties:
+        timezone: { type: string, minLength: 1, maxLength: 64 }
+        dateFormat: { $ref: "#/components/schemas/SettingsDateFormat" }
+        timeFormat: { $ref: "#/components/schemas/SettingsTimeFormat" }
+        emailNotifications: { type: boolean }
+        weeklyDigest: { type: boolean }
+      required: [timezone, dateFormat, timeFormat, emailNotifications, weeklyDigest]
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque

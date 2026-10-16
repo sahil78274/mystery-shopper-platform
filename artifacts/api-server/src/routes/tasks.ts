@@ -18,6 +18,7 @@ import {
   storesTable,
   tasksTable,
 } from "@workspace/db";
+import { requireAuth, requireRole, regionScopeFor } from "../lib/auth";
 import { iso, recordActivity, validDate } from "../lib/platform";
 
 const router: IRouter = Router();
@@ -87,13 +88,24 @@ function hasValidDates(visitDate: string, dueDate: string): boolean {
   return validDate(visitDate) && validDate(dueDate) && dueDate >= visitDate;
 }
 
-router.get("/tasks", async (req, res): Promise<void> => {
+router.get("/tasks", requireAuth, async (req, res): Promise<void> => {
   const parsed = GetTasksQueryParams.safeParse(req.query);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+  const user = req.authUser!;
   const conditions = [];
+  // Shoppers only ever see their own assignments.
+  if (user.role === "mystery_shopper") {
+    if (!user.shopperId) {
+      res.json(GetTasksResponse.parse([]));
+      return;
+    }
+    conditions.push(eq(tasksTable.shopperId, user.shopperId));
+  }
+  const scopedRegion = regionScopeFor(user);
+  if (scopedRegion) conditions.push(eq(storesTable.region, scopedRegion));
   if (parsed.data.status) {
     conditions.push(eq(tasksTable.status, parsed.data.status));
   }
@@ -128,7 +140,7 @@ router.get("/tasks", async (req, res): Promise<void> => {
   res.json(GetTasksResponse.parse(rows.map(toTask)));
 });
 
-router.post("/tasks", async (req, res): Promise<void> => {
+router.post("/tasks", requireRole("admin"), async (req, res): Promise<void> => {
   const parsed = CreateTaskBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -196,11 +208,17 @@ router.post("/tasks", async (req, res): Promise<void> => {
     })
     .returning();
   const result = await getTaskRow(task.id);
-  await recordActivity("created", "task", task.id, `Created task for ${result?.storeName ?? "store"}`);
+  await recordActivity(
+    "created",
+    "task",
+    task.id,
+    `Created task for ${result?.storeName ?? "store"}`,
+    req.authUser!.id,
+  );
   res.status(201).json(CreateTaskResponse.parse(result));
 });
 
-router.get("/tasks/:taskId", async (req, res): Promise<void> => {
+router.get("/tasks/:taskId", requireAuth, async (req, res): Promise<void> => {
   const params = GetTaskParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -211,10 +229,26 @@ router.get("/tasks/:taskId", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Task not found." });
     return;
   }
+  const user = req.authUser!;
+  if (user.role === "mystery_shopper" && row.shopperId !== user.shopperId) {
+    res.status(404).json({ error: "Task not found." });
+    return;
+  }
+  const scopedRegion = regionScopeFor(user);
+  if (scopedRegion) {
+    const [store] = await db
+      .select({ id: storesTable.id })
+      .from(storesTable)
+      .where(and(eq(storesTable.id, row.storeId), eq(storesTable.region, scopedRegion)));
+    if (!store) {
+      res.status(404).json({ error: "Task not found." });
+      return;
+    }
+  }
   res.json(GetTaskResponse.parse(row));
 });
 
-router.patch("/tasks/:taskId", async (req, res): Promise<void> => {
+router.patch("/tasks/:taskId", requireRole("admin"), async (req, res): Promise<void> => {
   const params = UpdateTaskParams.safeParse(req.params);
   const parsed = UpdateTaskBody.safeParse(req.body);
   if (!params.success || !parsed.success) {
@@ -307,7 +341,13 @@ router.patch("/tasks/:taskId", async (req, res): Promise<void> => {
     .where(eq(tasksTable.id, current.id))
     .returning();
   const result = await getTaskRow(updated.id);
-  await recordActivity("updated", "task", updated.id, `Updated task #${updated.id}`);
+  await recordActivity(
+    "updated",
+    "task",
+    updated.id,
+    `Updated task #${updated.id}`,
+    req.authUser!.id,
+  );
   res.json(UpdateTaskResponse.parse(result));
 });
 

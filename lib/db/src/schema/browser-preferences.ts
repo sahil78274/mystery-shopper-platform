@@ -17,8 +17,9 @@ export const browserPreferencesTable = pgTable("browser_preferences", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
 
+// `id` is generated always as identity, so drizzle-zod already excludes it from
+// the insert schema; omitting it again throws "Unrecognized key: id".
 export const insertBrowserPreferencesSchema = createInsertSchema(browserPreferencesTable).omit({
-  id: true,
   createdAt: true,
   updatedAt: true,
 });

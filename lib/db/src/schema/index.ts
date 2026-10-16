@@ -19,10 +19,16 @@
 
 export * from "./activity-logs";
 export * from "./browser-preferences";
+export * from "./organization-settings";
 export * from "./questionnaire-questions";
 export * from "./questionnaires";
+export * from "./sessions";
 export * from "./shoppers";
 export * from "./stores";
+export * from "./submission-answers";
+export * from "./submission-evidence";
+export * from "./submissions";
 export * from "./tasks";
+export * from "./user-preferences";
 export * from "./users";
 export * from "./verification-decisions";

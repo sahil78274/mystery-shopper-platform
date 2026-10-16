@@ -9,12 +9,13 @@ import {
   storesTable,
   tasksTable,
 } from "@workspace/db";
+import { requireRole } from "../lib/auth";
 import { iso } from "../lib/platform";
 
 const router: IRouter = Router();
 const pendingStatuses = ["draft", "assigned", "in_progress", "submitted"];
 
-router.get("/dashboard", async (_req, res): Promise<void> => {
+router.get("/dashboard", requireRole("admin"), async (_req, res): Promise<void> => {
   const [
     [stores],
     [shoppers],
