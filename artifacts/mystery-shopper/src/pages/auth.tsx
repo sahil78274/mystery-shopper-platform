@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useLocation, useSearch } from 'wouter';
-import { CircleAlert, LogIn, ShieldCheck, Store as StoreIcon, UserPlus } from 'lucide-react';
+import { ArrowLeft, CircleAlert, LogIn, ShieldCheck, Store as StoreIcon, UserPlus } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { messageOf } from '@/components/common';
 
@@ -42,6 +42,9 @@ function AuthShell({
               <ShieldCheck size={15} /> Only approved reports feed official store scorecards.
             </li>
           </ul>
+          <Link className="auth-back" href="/">
+            <ArrowLeft size={14} /> Back to Ricoz home
+          </Link>
         </aside>
         <section className="auth-main">
           <h1>{title}</h1>
