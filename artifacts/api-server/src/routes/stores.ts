@@ -13,6 +13,7 @@ import {
   UpdateStoreResponse,
 } from "@workspace/api-zod";
 import { db, storesTable, tasksTable } from "@workspace/db";
+import { requireAuth, requireRole, regionScopeFor } from "../lib/auth";
 import { iso, isUniqueViolation, recordActivity } from "../lib/platform";
 
 const router: IRouter = Router();
@@ -27,14 +28,21 @@ function toStore(row: typeof storesTable.$inferSelect) {
   };
 }
 
-router.get("/stores", async (req, res): Promise<void> => {
+router.get("/stores", requireAuth, async (req, res): Promise<void> => {
   const parsed = GetStoresQueryParams.safeParse(req.query);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+  const user = req.authUser!;
+  if (user.role === "mystery_shopper") {
+    res.status(403).json({ error: "The store directory is not available to shoppers." });
+    return;
+  }
   const { search, region, status } = parsed.data;
   const conditions = [];
+  const scopedRegion = regionScopeFor(user);
+  if (scopedRegion) conditions.push(eq(storesTable.region, scopedRegion));
   if (search) {
     const term = `%${search}%`;
     conditions.push(
@@ -57,7 +65,7 @@ router.get("/stores", async (req, res): Promise<void> => {
   res.json(GetStoresResponse.parse(rows.map(toStore)));
 });
 
-router.post("/stores", async (req, res): Promise<void> => {
+router.post("/stores", requireRole("admin"), async (req, res): Promise<void> => {
   const parsed = CreateStoreBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -65,7 +73,7 @@ router.post("/stores", async (req, res): Promise<void> => {
   }
   try {
     const [row] = await db.insert(storesTable).values(parsed.data).returning();
-    await recordActivity("created", "store", row.id, `Added store ${row.name}`);
+    await recordActivity("created", "store", row.id, `Added store ${row.name}`, req.authUser!.id);
     res.status(201).json(CreateStoreResponse.parse(toStore(row)));
   } catch (error) {
     if (isUniqueViolation(error)) {
@@ -76,7 +84,7 @@ router.post("/stores", async (req, res): Promise<void> => {
   }
 });
 
-router.get("/stores/:storeId", async (req, res): Promise<void> => {
+router.get("/stores/:storeId", requireAuth, async (req, res): Promise<void> => {
   const params = GetStoreParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -90,10 +98,20 @@ router.get("/stores/:storeId", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Store not found." });
     return;
   }
+  const user = req.authUser!;
+  if (user.role === "mystery_shopper") {
+    res.status(403).json({ error: "You cannot access this store record." });
+    return;
+  }
+  const scopedRegion = regionScopeFor(user);
+  if (scopedRegion && row.region !== scopedRegion) {
+    res.status(404).json({ error: "Store not found." });
+    return;
+  }
   res.json(GetStoreResponse.parse(toStore(row)));
 });
 
-router.patch("/stores/:storeId", async (req, res): Promise<void> => {
+router.patch("/stores/:storeId", requireRole("admin"), async (req, res): Promise<void> => {
   const params = UpdateStoreParams.safeParse(req.params);
   const parsed = UpdateStoreBody.safeParse(req.body);
   if (!params.success || !parsed.success) {
@@ -114,7 +132,7 @@ router.patch("/stores/:storeId", async (req, res): Promise<void> => {
       res.status(404).json({ error: "Store not found." });
       return;
     }
-    await recordActivity("updated", "store", row.id, `Updated store ${row.name}`);
+    await recordActivity("updated", "store", row.id, `Updated store ${row.name}`, req.authUser!.id);
     res.json(UpdateStoreResponse.parse(toStore(row)));
   } catch (error) {
     if (isUniqueViolation(error)) {
@@ -125,7 +143,7 @@ router.patch("/stores/:storeId", async (req, res): Promise<void> => {
   }
 });
 
-router.delete("/stores/:storeId", async (req, res): Promise<void> => {
+router.delete("/stores/:storeId", requireRole("admin"), async (req, res): Promise<void> => {
   const params = DeleteStoreParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -151,7 +169,7 @@ router.delete("/stores/:storeId", async (req, res): Promise<void> => {
     return;
   }
   await db.delete(storesTable).where(eq(storesTable.id, row.id));
-  await recordActivity("deleted", "store", row.id, `Deleted store ${row.name}`);
+  await recordActivity("deleted", "store", row.id, `Deleted store ${row.name}`, req.authUser!.id);
   res.sendStatus(204);
 });
 

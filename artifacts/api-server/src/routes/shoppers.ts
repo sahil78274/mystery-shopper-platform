@@ -20,6 +20,7 @@ import {
   shoppersTable,
   verificationDecisionsTable,
 } from "@workspace/db";
+import { requireAuth, requireRole } from "../lib/auth";
 import { iso, isUniqueViolation, recordActivity } from "../lib/platform";
 
 const router: IRouter = Router();
@@ -34,14 +35,23 @@ function toShopper(row: typeof shoppersTable.$inferSelect) {
   };
 }
 
-router.get("/shoppers", async (req, res): Promise<void> => {
+router.get("/shoppers", requireAuth, async (req, res): Promise<void> => {
   const parsed = GetShoppersQueryParams.safeParse(req.query);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+  const user = req.authUser!;
   const { search, verificationStatus, accountStatus } = parsed.data;
   const conditions = [];
+  // Shoppers may only ever see their own profile record.
+  if (user.role === "mystery_shopper") {
+    if (!user.shopperId) {
+      res.json(GetShoppersResponse.parse([]));
+      return;
+    }
+    conditions.push(eq(shoppersTable.id, user.shopperId));
+  }
   if (search) {
     conditions.push(
       or(
@@ -66,7 +76,7 @@ router.get("/shoppers", async (req, res): Promise<void> => {
   res.json(GetShoppersResponse.parse(rows.map(toShopper)));
 });
 
-router.post("/shoppers", async (req, res): Promise<void> => {
+router.post("/shoppers", requireRole("admin"), async (req, res): Promise<void> => {
   const parsed = CreateShopperBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -91,6 +101,7 @@ router.post("/shoppers", async (req, res): Promise<void> => {
       "shopper",
       row.id,
       `Registered shopper ${row.fullName}`,
+      req.authUser!.id,
     );
     res.status(201).json(CreateShopperResponse.parse(toShopper(row)));
   } catch (error) {
@@ -102,7 +113,7 @@ router.post("/shoppers", async (req, res): Promise<void> => {
   }
 });
 
-router.get("/shoppers/:shopperId", async (req, res): Promise<void> => {
+router.get("/shoppers/:shopperId", requireAuth, async (req, res): Promise<void> => {
   const params = GetShopperParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -116,10 +127,15 @@ router.get("/shoppers/:shopperId", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Shopper not found." });
     return;
   }
+  const user = req.authUser!;
+  if (user.role === "mystery_shopper" && row.id !== user.shopperId) {
+    res.status(404).json({ error: "Shopper not found." });
+    return;
+  }
   res.json(GetShopperResponse.parse(toShopper(row)));
 });
 
-router.patch("/shoppers/:shopperId", async (req, res): Promise<void> => {
+router.patch("/shoppers/:shopperId", requireRole("admin"), async (req, res): Promise<void> => {
   const params = UpdateShopperParams.safeParse(req.params);
   const parsed = UpdateShopperBody.safeParse(req.body);
   if (!params.success || !parsed.success) {
@@ -145,6 +161,7 @@ router.patch("/shoppers/:shopperId", async (req, res): Promise<void> => {
       "shopper",
       row.id,
       `Updated shopper ${row.fullName}`,
+      req.authUser!.id,
     );
     res.json(UpdateShopperResponse.parse(toShopper(row)));
   } catch (error) {
@@ -158,6 +175,7 @@ router.patch("/shoppers/:shopperId", async (req, res): Promise<void> => {
 
 router.post(
   "/shoppers/:shopperId/verification",
+  requireRole("admin"),
   async (req, res): Promise<void> => {
     const params = DecideShopperVerificationParams.safeParse(req.params);
     const parsed = DecideShopperVerificationBody.safeParse(req.body);
@@ -201,6 +219,7 @@ router.post(
         entityType: "shopper",
         entityId: existing.id,
         description: `${parsed.data.verificationStatus === "verified" ? "Verified" : "Rejected"} shopper ${existing.fullName}`,
+        actorUserId: req.authUser!.id,
       });
       return [updated];
     });

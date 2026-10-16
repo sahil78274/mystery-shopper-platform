@@ -358,6 +358,402 @@ export interface Dashboard {
   recentActivity: Activity[];
 }
 
+export type UserRole = typeof UserRole[keyof typeof UserRole];
+
+
+export const UserRole = {
+  admin: 'admin',
+  mystery_shopper: 'mystery_shopper',
+  reviewer: 'reviewer',
+  regional_executive: 'regional_executive',
+} as const;
+
+export interface AuthUser {
+  id: number;
+  fullName: string;
+  email: string;
+  role: UserRole;
+  accountStatus: AccountStatus;
+  /** @nullable */
+  region: string | null;
+  /** @nullable */
+  shopperId: number | null;
+  /** @nullable */
+  verificationStatus: string | null;
+  /** @nullable */
+  lastLoginAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface User {
+  id: number;
+  fullName: string;
+  email: string;
+  role: UserRole;
+  accountStatus: AccountStatus;
+  /** @nullable */
+  region: string | null;
+  /** @nullable */
+  shopperId: number | null;
+  /** @nullable */
+  lastLoginAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UserInput {
+  /** @minLength 1 */
+  fullName: string;
+  email: string;
+  /** @minLength 8 */
+  password: string;
+  role: UserRole;
+  /** @nullable */
+  region?: string | null;
+}
+
+export interface UserUpdate {
+  /** @minLength 1 */
+  fullName?: string;
+  email?: string;
+  /** @minLength 8 */
+  password?: string;
+  role?: UserRole;
+  accountStatus?: AccountStatus;
+  /** @nullable */
+  region?: string | null;
+}
+
+export interface AuthSession {
+  token: string;
+  expiresAt: string;
+  user: AuthUser;
+}
+
+export interface RegisterShopperInput {
+  /** @minLength 1 */
+  fullName: string;
+  email: string;
+  /** @minLength 8 */
+  password: string;
+  /** @minLength 1 */
+  phone: string;
+  /** @minLength 1 */
+  city: string;
+  /** @minimum 0 */
+  experience?: number;
+}
+
+export interface LoginInput {
+  email: string;
+  /** @minLength 1 */
+  password: string;
+}
+
+export interface UpdateProfileInput {
+  /** @minLength 1 */
+  fullName?: string;
+  email?: string;
+}
+
+export interface ChangePasswordInput {
+  /** @minLength 1 */
+  currentPassword: string;
+  /** @minLength 8 */
+  newPassword: string;
+}
+
+export interface MessageResponse {
+  message: string;
+}
+
+export type SubmissionStatus = typeof SubmissionStatus[keyof typeof SubmissionStatus];
+
+
+export const SubmissionStatus = {
+  draft: 'draft',
+  submitted: 'submitted',
+  under_review: 'under_review',
+  approved: 'approved',
+  rejected: 'rejected',
+  needs_correction: 'needs_correction',
+} as const;
+
+export interface SubmissionAnswerInput {
+  questionId: number;
+  /** @nullable */
+  valueText?: string | null;
+  /** @nullable */
+  valueNumber?: number | null;
+  /** @nullable */
+  valueBoolean?: boolean | null;
+}
+
+export interface SubmissionAnswerView {
+  id: number;
+  /** @nullable */
+  questionId: number | null;
+  prompt: string;
+  type: QuestionType;
+  required: boolean;
+  position: number;
+  options: string[];
+  /** @nullable */
+  valueText: string | null;
+  /** @nullable */
+  valueNumber: number | null;
+  /** @nullable */
+  valueBoolean: boolean | null;
+}
+
+export interface SubmissionEvidenceView {
+  id: number;
+  fileName: string;
+  mimeType: string;
+  byteSize: number;
+  /** @nullable */
+  caption: string | null;
+  createdAt: string;
+  url: string;
+}
+
+export interface SubmissionSummary {
+  id: number;
+  taskId: number;
+  shopperId: number;
+  /** @nullable */
+  shopperName: string | null;
+  storeId: number;
+  storeName: string;
+  storeCode: string;
+  storeRegion: string;
+  storeCity: string;
+  visitDate: string;
+  dueDate: string;
+  status: SubmissionStatus;
+  /** @nullable */
+  score: number | null;
+  /** @nullable */
+  comment: string | null;
+  evidenceCount: number;
+  /** @nullable */
+  submittedAt: string | null;
+  /** @nullable */
+  reviewedAt: string | null;
+  /** @nullable */
+  reviewerName: string | null;
+  /** @nullable */
+  reviewerComment: string | null;
+  canEdit: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SubmissionDetail {
+  id: number;
+  taskId: number;
+  shopperId: number;
+  /** @nullable */
+  shopperName: string | null;
+  storeId: number;
+  storeName: string;
+  storeCode: string;
+  storeRegion: string;
+  storeCity: string;
+  visitDate: string;
+  dueDate: string;
+  instructions: string;
+  /** @nullable */
+  questionnaireId: number | null;
+  /** @nullable */
+  questionnaireTitle: string | null;
+  status: SubmissionStatus;
+  /** @nullable */
+  score: number | null;
+  /** @nullable */
+  comment: string | null;
+  evidenceCount: number;
+  /** @nullable */
+  submittedAt: string | null;
+  /** @nullable */
+  reviewedAt: string | null;
+  /** @nullable */
+  reviewerName: string | null;
+  /** @nullable */
+  reviewerComment: string | null;
+  canEdit: boolean;
+  questions: SubmissionAnswerView[];
+  evidence: SubmissionEvidenceView[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateSubmissionInput {
+  taskId: number;
+}
+
+export interface SaveSubmissionInput {
+  /** @nullable */
+  comment?: string | null;
+  answers: SubmissionAnswerInput[];
+}
+
+export interface EvidenceInput {
+  /** @minLength 1 */
+  fileName: string;
+  /** @minLength 1 */
+  mimeType: string;
+  /** @minLength 1 */
+  data: string;
+  /** @nullable */
+  caption?: string | null;
+}
+
+export type ReviewDecisionInputStatus = typeof ReviewDecisionInputStatus[keyof typeof ReviewDecisionInputStatus];
+
+
+export const ReviewDecisionInputStatus = {
+  under_review: 'under_review',
+  approved: 'approved',
+  rejected: 'rejected',
+  needs_correction: 'needs_correction',
+} as const;
+
+export interface ReviewDecisionInput {
+  status: ReviewDecisionInputStatus;
+  /** @nullable */
+  comment?: string | null;
+}
+
+export interface ShopperOverview {
+  openAssignments: number;
+  draftsInProgress: number;
+  awaitingReview: number;
+  approved: number;
+  needsCorrection: number;
+  rejected: number;
+  /** @nullable */
+  averageScore: number | null;
+  upcomingTasks: Task[];
+  recentSubmissions: SubmissionSummary[];
+}
+
+export interface ReviewOverview {
+  awaitingReview: number;
+  inReview: number;
+  approved: number;
+  rejected: number;
+  needsCorrection: number;
+  /** @nullable */
+  averageScore: number | null;
+  recentDecisions: SubmissionSummary[];
+}
+
+export interface StoreScorecard {
+  storeId: number;
+  storeName: string;
+  storeCode: string;
+  brandName: string;
+  region: string;
+  city: string;
+  visits: number;
+  /** @nullable */
+  averageScore: number | null;
+  /** @nullable */
+  lastVisitDate: string | null;
+  /** @nullable */
+  lastScore: number | null;
+  /** @nullable */
+  previousScore: number | null;
+  /** @nullable */
+  trend: number | null;
+}
+
+export interface TrendPoint {
+  month: string;
+  reports: number;
+  /** @nullable */
+  averageScore: number | null;
+}
+
+export interface RegionComparison {
+  /** @nullable */
+  region: string | null;
+  stores: number;
+  visits: number;
+  /** @nullable */
+  averageScore: number | null;
+  /** @nullable */
+  networkAverageScore: number | null;
+  topStore?: StoreScorecard;
+  bottomStore?: StoreScorecard;
+  scorecards: StoreScorecard[];
+}
+
+export interface RegionalOverview {
+  /** @nullable */
+  region: string | null;
+  stores: number;
+  approvedReports: number;
+  pendingReports: number;
+  needsCorrection: number;
+  /** @nullable */
+  averageScore: number | null;
+  /** @nullable */
+  networkAverageScore: number | null;
+  trend: TrendPoint[];
+  topStores: StoreScorecard[];
+  focusStores: StoreScorecard[];
+  recentReports: SubmissionSummary[];
+}
+
+export interface OrganizationSettings {
+  name: string;
+  /** @nullable */
+  contactEmail: string | null;
+  /** @nullable */
+  phone: string | null;
+  /** @nullable */
+  address: string | null;
+  /** @nullable */
+  website: string | null;
+  updatedAt: string;
+}
+
+export interface OrganizationSettingsInput {
+  /** @minLength 1 */
+  name: string;
+  /** @nullable */
+  contactEmail?: string | null;
+  /** @nullable */
+  phone?: string | null;
+  /** @nullable */
+  address?: string | null;
+  /** @nullable */
+  website?: string | null;
+}
+
+export interface UserPreferences {
+  timezone: string;
+  dateFormat: SettingsDateFormat;
+  timeFormat: SettingsTimeFormat;
+  emailNotifications: boolean;
+  weeklyDigest: boolean;
+}
+
+export interface UserPreferencesInput {
+  /**
+     * @minLength 1
+     * @maxLength 64
+     */
+  timezone: string;
+  dateFormat: SettingsDateFormat;
+  timeFormat: SettingsTimeFormat;
+  emailNotifications: boolean;
+  weeklyDigest: boolean;
+}
+
 export type GetStoresParams = {
 search?: string;
 region?: string;
@@ -379,4 +775,61 @@ export type GetQuestionnairesParams = {
 search?: string;
 status?: QuestionnaireStatus;
 };
+
+export type GetUsersParams = {
+search?: string;
+role?: UserRole;
+accountStatus?: AccountStatus;
+};
+
+export type GetSubmissionsParams = {
+search?: string;
+status?: SubmissionStatus;
+storeId?: number;
+from?: string;
+to?: string;
+};
+
+export type GetMySubmissionsParams = {
+status?: SubmissionStatus;
+};
+
+export type GetReviewQueueParams = {
+search?: string;
+status?: SubmissionStatus;
+};
+
+export type GetReviewHistoryParams = {
+search?: string;
+status?: SubmissionStatus;
+from?: string;
+to?: string;
+};
+
+export type GetRegionalScorecardsParams = {
+search?: string;
+};
+
+export type GetRegionalTrendsParams = {
+/**
+ * @minimum 3
+ * @maximum 24
+ */
+months?: number;
+};
+
+export type ExportRegionalDataParams = {
+dataset: ExportRegionalDataDataset;
+from?: string;
+to?: string;
+};
+
+export type ExportRegionalDataDataset = typeof ExportRegionalDataDataset[keyof typeof ExportRegionalDataDataset];
+
+
+export const ExportRegionalDataDataset = {
+  scorecards: 'scorecards',
+  reports: 'reports',
+  trends: 'trends',
+} as const;
 

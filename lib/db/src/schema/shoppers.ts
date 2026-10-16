@@ -1,6 +1,7 @@
 import { createInsertSchema } from "drizzle-zod";
 import { integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import { z } from "zod/v4";
+import { usersTable } from "./users";
 
 export const shoppersTable = pgTable("shoppers", {
   id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
@@ -13,6 +14,11 @@ export const shoppersTable = pgTable("shoppers", {
   accountStatus: text("account_status").notNull().default("active"),
   decisionReason: text("decision_reason"),
   decisionAt: timestamp("decision_at", { withTimezone: true }),
+  // Links a shopper profile to its login (set when the shopper self-registers
+  // or when an admin creates the login for an existing profile).
+  userId: integer("user_id").references(() => usersTable.id, {
+    onDelete: "set null",
+  }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

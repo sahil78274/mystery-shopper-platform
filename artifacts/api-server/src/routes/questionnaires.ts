@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, ilike, or } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { Router, type IRouter } from "express";
 import {
   CreateQuestionnaireBody,
@@ -15,7 +15,9 @@ import {
   db,
   questionnaireQuestionsTable,
   questionnairesTable,
+  tasksTable,
 } from "@workspace/db";
+import { requireAuth, requireRole } from "../lib/auth";
 import { iso, recordActivity } from "../lib/platform";
 
 const router: IRouter = Router();
@@ -60,7 +62,7 @@ async function getQuestionnaireRow(questionnaireId: number) {
   };
 }
 
-router.get("/questionnaires", async (req, res): Promise<void> => {
+router.get("/questionnaires", requireAuth, async (req, res): Promise<void> => {
   const parsed = GetQuestionnairesQueryParams.safeParse(req.query);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -90,7 +92,7 @@ router.get("/questionnaires", async (req, res): Promise<void> => {
   res.json(GetQuestionnairesResponse.parse(results));
 });
 
-router.post("/questionnaires", async (req, res): Promise<void> => {
+router.post("/questionnaires", requireRole("admin"), async (req, res): Promise<void> => {
   const parsed = CreateQuestionnaireBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -130,6 +132,7 @@ router.post("/questionnaires", async (req, res): Promise<void> => {
     "questionnaire",
     questionnaire.id,
     `Created questionnaire ${questionnaire.title}`,
+    req.authUser!.id,
   );
   const result = await getQuestionnaireRow(questionnaire.id);
   res.status(201).json(CreateQuestionnaireResponse.parse(result));
@@ -137,11 +140,30 @@ router.post("/questionnaires", async (req, res): Promise<void> => {
 
 router.get(
   "/questionnaires/:questionnaireId",
+  requireAuth,
   async (req, res): Promise<void> => {
     const params = GetQuestionnaireParams.safeParse(req.params);
     if (!params.success) {
       res.status(400).json({ error: params.error.message });
       return;
+    }
+    const user = req.authUser!;
+    if (user.role === "mystery_shopper") {
+      // A shopper may only read a questionnaire that one of their own visits uses.
+      const owned = await db
+        .select({ id: tasksTable.id })
+        .from(tasksTable)
+        .where(
+          and(
+            eq(tasksTable.questionnaireId, params.data.questionnaireId),
+            user.shopperId ? eq(tasksTable.shopperId, user.shopperId) : sql`false`,
+          ),
+        )
+        .limit(1);
+      if (!owned.length) {
+        res.status(403).json({ error: "You cannot access this questionnaire." });
+        return;
+      }
     }
     const result = await getQuestionnaireRow(params.data.questionnaireId);
     if (!result) {
@@ -154,6 +176,7 @@ router.get(
 
 router.patch(
   "/questionnaires/:questionnaireId",
+  requireRole("admin"),
   async (req, res): Promise<void> => {
     const params = UpdateQuestionnaireParams.safeParse(req.params);
     const parsed = UpdateQuestionnaireBody.safeParse(req.body);
@@ -224,6 +247,7 @@ router.patch(
       "questionnaire",
       updated.id,
       `Updated questionnaire ${updated.title}`,
+      req.authUser!.id,
     );
     const result = await getQuestionnaireRow(updated.id);
     res.json(UpdateQuestionnaireResponse.parse(result));
