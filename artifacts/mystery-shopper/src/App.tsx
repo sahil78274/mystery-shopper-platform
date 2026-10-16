@@ -6,6 +6,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Workspace } from '@/components/workspace';
 import { LoginPage, RegisterPage } from '@/pages/auth';
+import { LandingPage } from '@/pages/landing';
 import NotFound from '@/pages/not-found';
 import { AppQueryProvider, AuthProvider, useAuth } from '@/lib/auth';
 import { PreferencesProvider } from '@/lib/format';
@@ -32,6 +33,23 @@ function RequireAuth({ children }: { children: ReactNode }) {
     return <Redirect to={`/login${redirect}`} />;
   }
   return <>{children}</>;
+}
+
+/**
+ * The public landing page. Signed-in visitors see their own dashboard at "/",
+ * so the marketing page lives at /welcome and is also what guests see at "/".
+ */
+function PublicHome() {
+  const { user, loading } = useAuth();
+  if (loading) return <Splash label="Loading Ricoz…" />;
+  if (user) {
+    return (
+      <RequireAuth>
+        <Workspace />
+      </RequireAuth>
+    );
+  }
+  return <LandingPage />;
 }
 
 /** Keeps signed-in users away from the login/register screens. */
@@ -83,6 +101,9 @@ function App() {
           <TooltipProvider>
             <RoutedErrorBoundary>
               <Switch>
+                <Route path="/welcome">
+                  <LandingPage />
+                </Route>
                 <Route path="/login">
                   <RedirectIfSignedIn>
                     <LoginPage />
@@ -93,17 +114,20 @@ function App() {
                     <RegisterPage />
                   </RedirectIfSignedIn>
                 </Route>
-                {workspaceRoutes.map((path) => (
-                  <Route key={path} path={path}>
-                    <RequireAuth>
-                      <Workspace />
-                    </RequireAuth>
-                  </Route>
-                ))}
+                {workspaceRoutes
+                  .filter((path) => path !== '/')
+                  .map((path) => (
+                    <Route key={path} path={path}>
+                      <RequireAuth>
+                        <Workspace />
+                      </RequireAuth>
+                    </Route>
+                  ))}
+                <Route path="/">
+                  <PublicHome />
+                </Route>
                 <Route>
-                  <RequireAuth>
-                    <NotFound />
-                  </RequireAuth>
+                  <NotFound />
                 </Route>
               </Switch>
             </RoutedErrorBoundary>
