@@ -11,8 +11,8 @@ if (!rawPort) {
 
 const port = Number(rawPort);
 
-if (Number.isNaN(port) || port <= 0) {
-  throw new Error(`Invalid PORT value: "${rawPort}"`);
+if (!Number.isInteger(port) || port < 1 || port > 65_535) {
+  throw new Error(`Invalid PORT value: "${rawPort}". Use an integer from 1 to 65535.`);
 }
 
 app.listen(port, (err) => {

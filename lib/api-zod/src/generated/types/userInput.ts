@@ -8,7 +8,10 @@
 import type { UserRole } from './userRole';
 
 export interface UserInput {
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @pattern \S
+     */
   fullName: string;
   email: string;
   /** @minLength 8 */

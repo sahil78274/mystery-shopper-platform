@@ -13,7 +13,8 @@ import {
   UpdateStoreResponse,
 } from "@workspace/api-zod";
 import { db, storesTable, tasksTable } from "@workspace/db";
-import { requireAuth, requireRole, regionScopeFor } from "../lib/auth";
+import { requireAssignedRegion, requireRole, requireRoleOrAdmin, regionScopeFor } from "../lib/auth";
+import { normalizeTextFields } from "../lib/validation";
 import { iso, isUniqueViolation, recordActivity } from "../lib/platform";
 
 const router: IRouter = Router();
@@ -28,17 +29,13 @@ function toStore(row: typeof storesTable.$inferSelect) {
   };
 }
 
-router.get("/stores", requireAuth, async (req, res): Promise<void> => {
+router.get("/stores", requireRoleOrAdmin("regional_executive"), requireAssignedRegion, async (req, res): Promise<void> => {
   const parsed = GetStoresQueryParams.safeParse(req.query);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
   const user = req.authUser!;
-  if (user.role === "mystery_shopper") {
-    res.status(403).json({ error: "The store directory is not available to shoppers." });
-    return;
-  }
   const { search, region, status } = parsed.data;
   const conditions = [];
   const scopedRegion = regionScopeFor(user);
@@ -66,7 +63,13 @@ router.get("/stores", requireAuth, async (req, res): Promise<void> => {
 });
 
 router.post("/stores", requireRole("admin"), async (req, res): Promise<void> => {
-  const parsed = CreateStoreBody.safeParse(req.body);
+  const parsed = CreateStoreBody.safeParse(
+    normalizeTextFields(
+      req.body,
+      ["name", "code", "brandName", "region", "city", "address", "contactPerson", "contactPhone"],
+      ["contactPerson", "contactPhone"],
+    ),
+  );
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
@@ -84,7 +87,7 @@ router.post("/stores", requireRole("admin"), async (req, res): Promise<void> => 
   }
 });
 
-router.get("/stores/:storeId", requireAuth, async (req, res): Promise<void> => {
+router.get("/stores/:storeId", requireRoleOrAdmin("regional_executive"), requireAssignedRegion, async (req, res): Promise<void> => {
   const params = GetStoreParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -99,10 +102,6 @@ router.get("/stores/:storeId", requireAuth, async (req, res): Promise<void> => {
     return;
   }
   const user = req.authUser!;
-  if (user.role === "mystery_shopper") {
-    res.status(403).json({ error: "You cannot access this store record." });
-    return;
-  }
   const scopedRegion = regionScopeFor(user);
   if (scopedRegion && row.region !== scopedRegion) {
     res.status(404).json({ error: "Store not found." });
@@ -113,7 +112,13 @@ router.get("/stores/:storeId", requireAuth, async (req, res): Promise<void> => {
 
 router.patch("/stores/:storeId", requireRole("admin"), async (req, res): Promise<void> => {
   const params = UpdateStoreParams.safeParse(req.params);
-  const parsed = UpdateStoreBody.safeParse(req.body);
+  const parsed = UpdateStoreBody.safeParse(
+    normalizeTextFields(
+      req.body,
+      ["name", "code", "brandName", "region", "city", "address", "contactPerson", "contactPhone"],
+      ["contactPerson", "contactPhone"],
+    ),
+  );
   if (!params.success || !parsed.success) {
     res.status(400).json({
       error: !params.success

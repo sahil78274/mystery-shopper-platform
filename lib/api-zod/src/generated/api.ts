@@ -52,6 +52,10 @@ export const UpdateSettingsPreferencesResponse = zod.object({
 /**
  * @summary Get admin dashboard metrics
  */
+export const getDashboardResponseRecentTasksItemVisitDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getDashboardResponseRecentTasksItemDueDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
 export const GetDashboardResponse = zod.object({
   "totalStores": zod.number().int(),
   "totalShoppers": zod.number().int(),
@@ -64,8 +68,8 @@ export const GetDashboardResponse = zod.object({
   "storeId": zod.number().int(),
   "shopperId": zod.number().int().nullable(),
   "questionnaireId": zod.number().int().nullable(),
-  "visitDate": zod.coerce.date(),
-  "dueDate": zod.coerce.date(),
+  "visitDate": zod.string().regex(getDashboardResponseRecentTasksItemVisitDateRegExp),
+  "dueDate": zod.string().regex(getDashboardResponseRecentTasksItemDueDateRegExp),
   "instructions": zod.string(),
   "priority": zod.enum(['low', 'medium', 'high', 'urgent']),
   "status": zod.enum(['draft', 'assigned', 'in_progress', 'submitted', 'under_review', 'approved', 'rejected', 'needs_correction', 'cancelled']),
@@ -121,19 +125,31 @@ export const GetStoresResponse = zod.array(GetStoresResponseItem)
  */
 
 
+export const createStoreBodyNameRegExp = new RegExp('\\S');
 
 
+export const createStoreBodyCodeRegExp = new RegExp('\\S');
 
 
+export const createStoreBodyBrandNameRegExp = new RegExp('\\S');
+
+
+export const createStoreBodyRegionRegExp = new RegExp('\\S');
+
+
+export const createStoreBodyCityRegExp = new RegExp('\\S');
+
+
+export const createStoreBodyAddressRegExp = new RegExp('\\S');
 
 
 export const CreateStoreBody = zod.object({
-  "name": zod.string().min(1),
-  "code": zod.string().min(1),
-  "brandName": zod.string().min(1),
-  "region": zod.string().min(1),
-  "city": zod.string().min(1),
-  "address": zod.string().min(1),
+  "name": zod.string().min(1).regex(createStoreBodyNameRegExp),
+  "code": zod.string().min(1).regex(createStoreBodyCodeRegExp),
+  "brandName": zod.string().min(1).regex(createStoreBodyBrandNameRegExp),
+  "region": zod.string().min(1).regex(createStoreBodyRegionRegExp),
+  "city": zod.string().min(1).regex(createStoreBodyCityRegExp),
+  "address": zod.string().min(1).regex(createStoreBodyAddressRegExp),
   "contactPerson": zod.string().nullish(),
   "contactPhone": zod.string().nullish(),
   "status": zod.enum(['active', 'inactive'])
@@ -187,19 +203,31 @@ export const UpdateStoreParams = zod.object({
 
 
 
+export const updateStoreBodyNameRegExp = new RegExp('\\S');
 
 
+export const updateStoreBodyCodeRegExp = new RegExp('\\S');
 
 
+export const updateStoreBodyBrandNameRegExp = new RegExp('\\S');
+
+
+export const updateStoreBodyRegionRegExp = new RegExp('\\S');
+
+
+export const updateStoreBodyCityRegExp = new RegExp('\\S');
+
+
+export const updateStoreBodyAddressRegExp = new RegExp('\\S');
 
 
 export const UpdateStoreBody = zod.object({
-  "name": zod.string().min(1).optional(),
-  "code": zod.string().min(1).optional(),
-  "brandName": zod.string().min(1).optional(),
-  "region": zod.string().min(1).optional(),
-  "city": zod.string().min(1).optional(),
-  "address": zod.string().min(1).optional(),
+  "name": zod.string().min(1).regex(updateStoreBodyNameRegExp).optional(),
+  "code": zod.string().min(1).regex(updateStoreBodyCodeRegExp).optional(),
+  "brandName": zod.string().min(1).regex(updateStoreBodyBrandNameRegExp).optional(),
+  "region": zod.string().min(1).regex(updateStoreBodyRegionRegExp).optional(),
+  "city": zod.string().min(1).regex(updateStoreBodyCityRegExp).optional(),
+  "address": zod.string().min(1).regex(updateStoreBodyAddressRegExp).optional(),
   "contactPerson": zod.string().nullish(),
   "contactPhone": zod.string().nullish(),
   "status": zod.enum(['active', 'inactive']).optional()
@@ -262,16 +290,22 @@ export const GetShoppersResponse = zod.array(GetShoppersResponseItem)
  */
 
 
+export const createShopperBodyFullNameRegExp = new RegExp('\\S');
 
+
+export const createShopperBodyPhoneRegExp = new RegExp('\\S');
+
+
+export const createShopperBodyCityRegExp = new RegExp('\\S');
 export const createShopperBodyExperienceMin = 0;
 
 
 
 export const CreateShopperBody = zod.object({
-  "fullName": zod.string().min(1),
+  "fullName": zod.string().min(1).regex(createShopperBodyFullNameRegExp),
   "email": zod.string().email(),
-  "phone": zod.string().min(1),
-  "city": zod.string().min(1),
+  "phone": zod.string().min(1).regex(createShopperBodyPhoneRegExp),
+  "city": zod.string().min(1).regex(createShopperBodyCityRegExp),
   "experience": zod.number().int().min(createShopperBodyExperienceMin),
   "verificationStatus": zod.enum(['pending', 'verified', 'rejected']).optional(),
   "accountStatus": zod.enum(['active', 'inactive']).optional()
@@ -325,16 +359,22 @@ export const UpdateShopperParams = zod.object({
 
 
 
+export const updateShopperBodyFullNameRegExp = new RegExp('\\S');
 
+
+export const updateShopperBodyPhoneRegExp = new RegExp('\\S');
+
+
+export const updateShopperBodyCityRegExp = new RegExp('\\S');
 export const updateShopperBodyExperienceMin = 0;
 
 
 
 export const UpdateShopperBody = zod.object({
-  "fullName": zod.string().min(1).optional(),
+  "fullName": zod.string().min(1).regex(updateShopperBodyFullNameRegExp).optional(),
   "email": zod.string().email().optional(),
-  "phone": zod.string().min(1).optional(),
-  "city": zod.string().min(1).optional(),
+  "phone": zod.string().min(1).regex(updateShopperBodyPhoneRegExp).optional(),
+  "city": zod.string().min(1).regex(updateShopperBodyCityRegExp).optional(),
   "experience": zod.number().int().min(updateShopperBodyExperienceMin).optional(),
   "accountStatus": zod.enum(['active', 'inactive']).optional()
 })
@@ -391,13 +431,17 @@ export const GetTasksQueryParams = zod.object({
   "status": zod.enum(['draft', 'assigned', 'in_progress', 'submitted', 'under_review', 'approved', 'rejected', 'needs_correction', 'cancelled']).optional()
 })
 
+export const getTasksResponseVisitDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getTasksResponseDueDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
 export const GetTasksResponseItem = zod.object({
   "id": zod.number().int(),
   "storeId": zod.number().int(),
   "shopperId": zod.number().int().nullable(),
   "questionnaireId": zod.number().int().nullable(),
-  "visitDate": zod.coerce.date(),
-  "dueDate": zod.coerce.date(),
+  "visitDate": zod.string().regex(getTasksResponseVisitDateRegExp),
+  "dueDate": zod.string().regex(getTasksResponseDueDateRegExp),
   "instructions": zod.string(),
   "priority": zod.enum(['low', 'medium', 'high', 'urgent']),
   "status": zod.enum(['draft', 'assigned', 'in_progress', 'submitted', 'under_review', 'approved', 'rejected', 'needs_correction', 'cancelled']),
@@ -417,24 +461,35 @@ export const GetTasksResponse = zod.array(GetTasksResponseItem)
 /**
  * @summary Create and optionally assign a visit task
  */
+export const createTaskBodyVisitDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const createTaskBodyDueDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const createTaskBodyInstructionsRegExp = new RegExp('\\S');
+
+
 export const CreateTaskBody = zod.object({
   "storeId": zod.number().int(),
   "shopperId": zod.number().int().nullish(),
   "questionnaireId": zod.number().int().nullish(),
-  "visitDate": zod.coerce.date(),
-  "dueDate": zod.coerce.date(),
-  "instructions": zod.string(),
+  "visitDate": zod.string().regex(createTaskBodyVisitDateRegExp),
+  "dueDate": zod.string().regex(createTaskBodyDueDateRegExp),
+  "instructions": zod.string().min(1).regex(createTaskBodyInstructionsRegExp),
   "priority": zod.enum(['low', 'medium', 'high', 'urgent']),
-  "status": zod.enum(['draft', 'assigned', 'in_progress', 'submitted', 'under_review', 'approved', 'rejected', 'needs_correction', 'cancelled'])
+  "status": zod.enum(['draft', 'assigned', 'cancelled'])
 })
+
+export const createTaskResponseVisitDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const createTaskResponseDueDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
 
 export const CreateTaskResponse = zod.object({
   "id": zod.number().int(),
   "storeId": zod.number().int(),
   "shopperId": zod.number().int().nullable(),
   "questionnaireId": zod.number().int().nullable(),
-  "visitDate": zod.coerce.date(),
-  "dueDate": zod.coerce.date(),
+  "visitDate": zod.string().regex(createTaskResponseVisitDateRegExp),
+  "dueDate": zod.string().regex(createTaskResponseDueDateRegExp),
   "instructions": zod.string(),
   "priority": zod.enum(['low', 'medium', 'high', 'urgent']),
   "status": zod.enum(['draft', 'assigned', 'in_progress', 'submitted', 'under_review', 'approved', 'rejected', 'needs_correction', 'cancelled']),
@@ -457,13 +512,17 @@ export const GetTaskParams = zod.object({
   "taskId": zod.coerce.number().int()
 })
 
+export const getTaskResponseVisitDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getTaskResponseDueDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
 export const GetTaskResponse = zod.object({
   "id": zod.number().int(),
   "storeId": zod.number().int(),
   "shopperId": zod.number().int().nullable(),
   "questionnaireId": zod.number().int().nullable(),
-  "visitDate": zod.coerce.date(),
-  "dueDate": zod.coerce.date(),
+  "visitDate": zod.string().regex(getTaskResponseVisitDateRegExp),
+  "dueDate": zod.string().regex(getTaskResponseDueDateRegExp),
   "instructions": zod.string(),
   "priority": zod.enum(['low', 'medium', 'high', 'urgent']),
   "status": zod.enum(['draft', 'assigned', 'in_progress', 'submitted', 'under_review', 'approved', 'rejected', 'needs_correction', 'cancelled']),
@@ -486,25 +545,35 @@ export const UpdateTaskParams = zod.object({
   "taskId": zod.coerce.number().int()
 })
 
+export const updateTaskBodyVisitDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const updateTaskBodyDueDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const updateTaskBodyInstructionsRegExp = new RegExp('\\S');
+
+
 export const UpdateTaskBody = zod.object({
   "storeId": zod.number().int().optional(),
   "shopperId": zod.number().int().nullish(),
   "questionnaireId": zod.number().int().nullish(),
-  "visitDate": zod.coerce.date().optional(),
-  "dueDate": zod.coerce.date().optional(),
-  "instructions": zod.string().optional(),
+  "visitDate": zod.string().regex(updateTaskBodyVisitDateRegExp).optional(),
+  "dueDate": zod.string().regex(updateTaskBodyDueDateRegExp).optional(),
+  "instructions": zod.string().min(1).regex(updateTaskBodyInstructionsRegExp).optional(),
   "priority": zod.enum(['low', 'medium', 'high', 'urgent']).optional(),
-  "status": zod.enum(['draft', 'assigned', 'in_progress', 'submitted', 'under_review', 'approved', 'rejected', 'needs_correction', 'cancelled']).optional(),
-  "reviewerComment": zod.string().nullish()
+  "status": zod.enum(['draft', 'assigned', 'cancelled']).optional()
 })
+
+export const updateTaskResponseVisitDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const updateTaskResponseDueDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
 
 export const UpdateTaskResponse = zod.object({
   "id": zod.number().int(),
   "storeId": zod.number().int(),
   "shopperId": zod.number().int().nullable(),
   "questionnaireId": zod.number().int().nullable(),
-  "visitDate": zod.coerce.date(),
-  "dueDate": zod.coerce.date(),
+  "visitDate": zod.string().regex(updateTaskResponseVisitDateRegExp),
+  "dueDate": zod.string().regex(updateTaskResponseDueDateRegExp),
   "instructions": zod.string(),
   "priority": zod.enum(['low', 'medium', 'high', 'urgent']),
   "status": zod.enum(['draft', 'assigned', 'in_progress', 'submitted', 'under_review', 'approved', 'rejected', 'needs_correction', 'cancelled']),
@@ -552,18 +621,25 @@ export const GetQuestionnairesResponse = zod.array(GetQuestionnairesResponseItem
  */
 
 
+export const createQuestionnaireBodyTitleRegExp = new RegExp('\\S');
+
+
+export const createQuestionnaireBodyQuestionsItemPromptRegExp = new RegExp('\\S');
+
+
+export const createQuestionnaireBodyQuestionsItemOptionsItemRegExp = new RegExp('\\S');
 
 
 export const CreateQuestionnaireBody = zod.object({
-  "title": zod.string().min(1),
+  "title": zod.string().min(1).regex(createQuestionnaireBodyTitleRegExp),
   "description": zod.string(),
   "status": zod.enum(['active', 'inactive']),
   "questions": zod.array(zod.object({
-  "prompt": zod.string().min(1),
+  "prompt": zod.string().min(1).regex(createQuestionnaireBodyQuestionsItemPromptRegExp),
   "type": zod.enum(['text', 'single_choice', 'yes_no', 'rating']),
   "required": zod.boolean(),
   "position": zod.number().int(),
-  "options": zod.array(zod.string())
+  "options": zod.array(zod.string().min(1).regex(createQuestionnaireBodyQuestionsItemOptionsItemRegExp))
 }))
 })
 
@@ -619,18 +695,25 @@ export const UpdateQuestionnaireParams = zod.object({
 
 
 
+export const updateQuestionnaireBodyTitleRegExp = new RegExp('\\S');
+
+
+export const updateQuestionnaireBodyQuestionsItemPromptRegExp = new RegExp('\\S');
+
+
+export const updateQuestionnaireBodyQuestionsItemOptionsItemRegExp = new RegExp('\\S');
 
 
 export const UpdateQuestionnaireBody = zod.object({
-  "title": zod.string().min(1).optional(),
+  "title": zod.string().min(1).regex(updateQuestionnaireBodyTitleRegExp).optional(),
   "description": zod.string().optional(),
   "status": zod.enum(['active', 'inactive']).optional(),
   "questions": zod.array(zod.object({
-  "prompt": zod.string().min(1),
+  "prompt": zod.string().min(1).regex(updateQuestionnaireBodyQuestionsItemPromptRegExp),
   "type": zod.enum(['text', 'single_choice', 'yes_no', 'rating']),
   "required": zod.boolean(),
   "position": zod.number().int(),
-  "options": zod.array(zod.string())
+  "options": zod.array(zod.string().min(1).regex(updateQuestionnaireBodyQuestionsItemOptionsItemRegExp))
 })).optional()
 })
 
@@ -657,20 +740,26 @@ export const UpdateQuestionnaireResponse = zod.object({
  * @summary Public self-registration for mystery shoppers only
  */
 
+
+export const registerShopperBodyFullNameRegExp = new RegExp('\\S');
 export const registerShopperBodyPasswordMin = 8;
 
 
 
+export const registerShopperBodyPhoneRegExp = new RegExp('\\S');
+
+
+export const registerShopperBodyCityRegExp = new RegExp('\\S');
 export const registerShopperBodyExperienceMin = 0;
 
 
 
 export const RegisterShopperBody = zod.object({
-  "fullName": zod.string().min(1),
+  "fullName": zod.string().min(1).regex(registerShopperBodyFullNameRegExp),
   "email": zod.string().email(),
   "password": zod.string().min(registerShopperBodyPasswordMin),
-  "phone": zod.string().min(1),
-  "city": zod.string().min(1),
+  "phone": zod.string().min(1).regex(registerShopperBodyPhoneRegExp),
+  "city": zod.string().min(1).regex(registerShopperBodyCityRegExp),
   "experience": zod.number().int().min(registerShopperBodyExperienceMin).optional()
 })
 
@@ -752,9 +841,11 @@ export const GetAuthSessionResponse = zod.object({
  */
 
 
+export const updateAuthProfileBodyFullNameRegExp = new RegExp('\\S');
+
 
 export const UpdateAuthProfileBody = zod.object({
-  "fullName": zod.string().min(1).optional(),
+  "fullName": zod.string().min(1).regex(updateAuthProfileBodyFullNameRegExp).optional(),
   "email": zod.string().email().optional()
 })
 
@@ -819,12 +910,14 @@ export const GetUsersResponse = zod.array(GetUsersResponseItem)
  * @summary Create an administrator, reviewer or regional executive account
  */
 
+
+export const createUserBodyFullNameRegExp = new RegExp('\\S');
 export const createUserBodyPasswordMin = 8;
 
 
 
 export const CreateUserBody = zod.object({
-  "fullName": zod.string().min(1),
+  "fullName": zod.string().min(1).regex(createUserBodyFullNameRegExp),
   "email": zod.string().email(),
   "password": zod.string().min(createUserBodyPasswordMin),
   "role": zod.enum(['admin', 'mystery_shopper', 'reviewer', 'regional_executive']),
@@ -853,12 +946,14 @@ export const UpdateUserParams = zod.object({
 })
 
 
+
+export const updateUserBodyFullNameRegExp = new RegExp('\\S');
 export const updateUserBodyPasswordMin = 8;
 
 
 
 export const UpdateUserBody = zod.object({
-  "fullName": zod.string().min(1).optional(),
+  "fullName": zod.string().min(1).regex(updateUserBodyFullNameRegExp).optional(),
   "email": zod.string().email().optional(),
   "password": zod.string().min(updateUserBodyPasswordMin).optional(),
   "role": zod.enum(['admin', 'mystery_shopper', 'reviewer', 'regional_executive']).optional(),
@@ -893,6 +988,12 @@ export const DeleteUserResponse = zod.void()
 /**
  * @summary Dashboard metrics for the signed-in mystery shopper
  */
+export const getShopperOverviewResponseUpcomingTasksItemVisitDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getShopperOverviewResponseUpcomingTasksItemDueDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getShopperOverviewResponseRecentSubmissionsItemVisitDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getShopperOverviewResponseRecentSubmissionsItemDueDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
 export const GetShopperOverviewResponse = zod.object({
   "openAssignments": zod.number().int(),
   "draftsInProgress": zod.number().int(),
@@ -906,8 +1007,8 @@ export const GetShopperOverviewResponse = zod.object({
   "storeId": zod.number().int(),
   "shopperId": zod.number().int().nullable(),
   "questionnaireId": zod.number().int().nullable(),
-  "visitDate": zod.coerce.date(),
-  "dueDate": zod.coerce.date(),
+  "visitDate": zod.string().regex(getShopperOverviewResponseUpcomingTasksItemVisitDateRegExp),
+  "dueDate": zod.string().regex(getShopperOverviewResponseUpcomingTasksItemDueDateRegExp),
   "instructions": zod.string(),
   "priority": zod.enum(['low', 'medium', 'high', 'urgent']),
   "status": zod.enum(['draft', 'assigned', 'in_progress', 'submitted', 'under_review', 'approved', 'rejected', 'needs_correction', 'cancelled']),
@@ -931,8 +1032,8 @@ export const GetShopperOverviewResponse = zod.object({
   "storeCode": zod.string(),
   "storeRegion": zod.string(),
   "storeCity": zod.string(),
-  "visitDate": zod.coerce.date(),
-  "dueDate": zod.coerce.date(),
+  "visitDate": zod.string().regex(getShopperOverviewResponseRecentSubmissionsItemVisitDateRegExp),
+  "dueDate": zod.string().regex(getShopperOverviewResponseRecentSubmissionsItemDueDateRegExp),
   "status": zod.enum(['draft', 'submitted', 'under_review', 'approved', 'rejected', 'needs_correction']),
   "score": zod.number().nullable(),
   "comment": zod.string().nullable(),
@@ -949,15 +1050,24 @@ export const GetShopperOverviewResponse = zod.object({
 
 
 /**
+ * Drafts are visible only to their shopper and administrators; other roles see reports after submission.
  * @summary List reports visible to the current role
  */
+export const getSubmissionsQueryFromRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getSubmissionsQueryToRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
 export const GetSubmissionsQueryParams = zod.object({
   "search": zod.coerce.string().optional(),
   "status": zod.enum(['draft', 'submitted', 'under_review', 'approved', 'rejected', 'needs_correction']).optional(),
   "storeId": zod.coerce.number().int().optional(),
-  "from": zod.date().optional(),
-  "to": zod.date().optional()
+  "from": zod.coerce.string().regex(getSubmissionsQueryFromRegExp).optional(),
+  "to": zod.coerce.string().regex(getSubmissionsQueryToRegExp).optional()
 })
+
+export const getSubmissionsResponseVisitDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getSubmissionsResponseDueDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
 
 export const GetSubmissionsResponseItem = zod.object({
   "id": zod.number().int(),
@@ -969,8 +1079,8 @@ export const GetSubmissionsResponseItem = zod.object({
   "storeCode": zod.string(),
   "storeRegion": zod.string(),
   "storeCity": zod.string(),
-  "visitDate": zod.coerce.date(),
-  "dueDate": zod.coerce.date(),
+  "visitDate": zod.string().regex(getSubmissionsResponseVisitDateRegExp),
+  "dueDate": zod.string().regex(getSubmissionsResponseDueDateRegExp),
   "status": zod.enum(['draft', 'submitted', 'under_review', 'approved', 'rejected', 'needs_correction']),
   "score": zod.number().nullable(),
   "comment": zod.string().nullable(),
@@ -993,6 +1103,10 @@ export const CreateSubmissionBody = zod.object({
   "taskId": zod.number().int()
 })
 
+export const createSubmissionResponseVisitDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const createSubmissionResponseDueDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
 export const CreateSubmissionResponse = zod.object({
   "id": zod.number().int(),
   "taskId": zod.number().int(),
@@ -1003,8 +1117,8 @@ export const CreateSubmissionResponse = zod.object({
   "storeCode": zod.string(),
   "storeRegion": zod.string(),
   "storeCity": zod.string(),
-  "visitDate": zod.coerce.date(),
-  "dueDate": zod.coerce.date(),
+  "visitDate": zod.string().regex(createSubmissionResponseVisitDateRegExp),
+  "dueDate": zod.string().regex(createSubmissionResponseDueDateRegExp),
   "instructions": zod.string(),
   "questionnaireId": zod.number().int().nullable(),
   "questionnaireTitle": zod.string().nullable(),
@@ -1050,6 +1164,10 @@ export const GetMySubmissionsQueryParams = zod.object({
   "status": zod.enum(['draft', 'submitted', 'under_review', 'approved', 'rejected', 'needs_correction']).optional()
 })
 
+export const getMySubmissionsResponseVisitDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getMySubmissionsResponseDueDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
 export const GetMySubmissionsResponseItem = zod.object({
   "id": zod.number().int(),
   "taskId": zod.number().int(),
@@ -1060,8 +1178,8 @@ export const GetMySubmissionsResponseItem = zod.object({
   "storeCode": zod.string(),
   "storeRegion": zod.string(),
   "storeCity": zod.string(),
-  "visitDate": zod.coerce.date(),
-  "dueDate": zod.coerce.date(),
+  "visitDate": zod.string().regex(getMySubmissionsResponseVisitDateRegExp),
+  "dueDate": zod.string().regex(getMySubmissionsResponseDueDateRegExp),
   "status": zod.enum(['draft', 'submitted', 'under_review', 'approved', 'rejected', 'needs_correction']),
   "score": zod.number().nullable(),
   "comment": zod.string().nullable(),
@@ -1078,11 +1196,16 @@ export const GetMySubmissionsResponse = zod.array(GetMySubmissionsResponseItem)
 
 
 /**
+ * Draft reports are private to the assigned shopper and administrators. Other access is limited by region and role.
  * @summary Report detail with answers and evidence
  */
 export const GetSubmissionParams = zod.object({
   "submissionId": zod.coerce.number().int()
 })
+
+export const getSubmissionResponseVisitDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getSubmissionResponseDueDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
 
 export const GetSubmissionResponse = zod.object({
   "id": zod.number().int(),
@@ -1094,8 +1217,8 @@ export const GetSubmissionResponse = zod.object({
   "storeCode": zod.string(),
   "storeRegion": zod.string(),
   "storeCity": zod.string(),
-  "visitDate": zod.coerce.date(),
-  "dueDate": zod.coerce.date(),
+  "visitDate": zod.string().regex(getSubmissionResponseVisitDateRegExp),
+  "dueDate": zod.string().regex(getSubmissionResponseDueDateRegExp),
   "instructions": zod.string(),
   "questionnaireId": zod.number().int().nullable(),
   "questionnaireTitle": zod.string().nullable(),
@@ -1151,6 +1274,10 @@ export const SaveSubmissionDraftBody = zod.object({
 }))
 })
 
+export const saveSubmissionDraftResponseVisitDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const saveSubmissionDraftResponseDueDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
 export const SaveSubmissionDraftResponse = zod.object({
   "id": zod.number().int(),
   "taskId": zod.number().int(),
@@ -1161,8 +1288,8 @@ export const SaveSubmissionDraftResponse = zod.object({
   "storeCode": zod.string(),
   "storeRegion": zod.string(),
   "storeCity": zod.string(),
-  "visitDate": zod.coerce.date(),
-  "dueDate": zod.coerce.date(),
+  "visitDate": zod.string().regex(saveSubmissionDraftResponseVisitDateRegExp),
+  "dueDate": zod.string().regex(saveSubmissionDraftResponseDueDateRegExp),
   "instructions": zod.string(),
   "questionnaireId": zod.number().int().nullable(),
   "questionnaireTitle": zod.string().nullable(),
@@ -1218,6 +1345,10 @@ export const SubmitSubmissionBody = zod.object({
 }))
 })
 
+export const submitSubmissionResponseVisitDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const submitSubmissionResponseDueDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
 export const SubmitSubmissionResponse = zod.object({
   "id": zod.number().int(),
   "taskId": zod.number().int(),
@@ -1228,8 +1359,8 @@ export const SubmitSubmissionResponse = zod.object({
   "storeCode": zod.string(),
   "storeRegion": zod.string(),
   "storeCity": zod.string(),
-  "visitDate": zod.coerce.date(),
-  "dueDate": zod.coerce.date(),
+  "visitDate": zod.string().regex(submitSubmissionResponseVisitDateRegExp),
+  "dueDate": zod.string().regex(submitSubmissionResponseDueDateRegExp),
   "instructions": zod.string(),
   "questionnaireId": zod.number().int().nullable(),
   "questionnaireTitle": zod.string().nullable(),
@@ -1277,15 +1408,25 @@ export const AddSubmissionEvidenceParams = zod.object({
 
 
 
+export const addSubmissionEvidenceBodyFileNameRegExp = new RegExp('\\S');
 
+
+export const addSubmissionEvidenceBodyMimeTypeRegExp = new RegExp('\\S');
+
+
+export const addSubmissionEvidenceBodyDataRegExp = new RegExp('\\S');
 
 
 export const AddSubmissionEvidenceBody = zod.object({
-  "fileName": zod.string().min(1),
-  "mimeType": zod.string().min(1),
-  "data": zod.string().min(1),
+  "fileName": zod.string().min(1).regex(addSubmissionEvidenceBodyFileNameRegExp),
+  "mimeType": zod.string().min(1).regex(addSubmissionEvidenceBodyMimeTypeRegExp),
+  "data": zod.string().min(1).regex(addSubmissionEvidenceBodyDataRegExp),
   "caption": zod.string().nullish()
 })
+
+export const addSubmissionEvidenceResponseVisitDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const addSubmissionEvidenceResponseDueDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
 
 export const AddSubmissionEvidenceResponse = zod.object({
   "id": zod.number().int(),
@@ -1297,8 +1438,8 @@ export const AddSubmissionEvidenceResponse = zod.object({
   "storeCode": zod.string(),
   "storeRegion": zod.string(),
   "storeCity": zod.string(),
-  "visitDate": zod.coerce.date(),
-  "dueDate": zod.coerce.date(),
+  "visitDate": zod.string().regex(addSubmissionEvidenceResponseVisitDateRegExp),
+  "dueDate": zod.string().regex(addSubmissionEvidenceResponseDueDateRegExp),
   "instructions": zod.string(),
   "questionnaireId": zod.number().int().nullable(),
   "questionnaireTitle": zod.string().nullable(),
@@ -1345,6 +1486,10 @@ export const DeleteSubmissionEvidenceParams = zod.object({
   "evidenceId": zod.coerce.number().int()
 })
 
+export const deleteSubmissionEvidenceResponseVisitDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const deleteSubmissionEvidenceResponseDueDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
 export const DeleteSubmissionEvidenceResponse = zod.object({
   "id": zod.number().int(),
   "taskId": zod.number().int(),
@@ -1355,8 +1500,8 @@ export const DeleteSubmissionEvidenceResponse = zod.object({
   "storeCode": zod.string(),
   "storeRegion": zod.string(),
   "storeCity": zod.string(),
-  "visitDate": zod.coerce.date(),
-  "dueDate": zod.coerce.date(),
+  "visitDate": zod.string().regex(deleteSubmissionEvidenceResponseVisitDateRegExp),
+  "dueDate": zod.string().regex(deleteSubmissionEvidenceResponseDueDateRegExp),
   "instructions": zod.string(),
   "questionnaireId": zod.number().int().nullable(),
   "questionnaireTitle": zod.string().nullable(),
@@ -1409,6 +1554,10 @@ export const GetSubmissionEvidenceFileResponse = zod.unknown()
 /**
  * @summary Dashboard metrics for reviewers
  */
+export const getReviewOverviewResponseRecentDecisionsItemVisitDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getReviewOverviewResponseRecentDecisionsItemDueDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
 export const GetReviewOverviewResponse = zod.object({
   "awaitingReview": zod.number().int(),
   "inReview": zod.number().int(),
@@ -1426,8 +1575,8 @@ export const GetReviewOverviewResponse = zod.object({
   "storeCode": zod.string(),
   "storeRegion": zod.string(),
   "storeCity": zod.string(),
-  "visitDate": zod.coerce.date(),
-  "dueDate": zod.coerce.date(),
+  "visitDate": zod.string().regex(getReviewOverviewResponseRecentDecisionsItemVisitDateRegExp),
+  "dueDate": zod.string().regex(getReviewOverviewResponseRecentDecisionsItemDueDateRegExp),
   "status": zod.enum(['draft', 'submitted', 'under_review', 'approved', 'rejected', 'needs_correction']),
   "score": zod.number().nullable(),
   "comment": zod.string().nullable(),
@@ -1448,8 +1597,12 @@ export const GetReviewOverviewResponse = zod.object({
  */
 export const GetReviewQueueQueryParams = zod.object({
   "search": zod.coerce.string().optional(),
-  "status": zod.enum(['draft', 'submitted', 'under_review', 'approved', 'rejected', 'needs_correction']).optional()
+  "status": zod.enum(['submitted', 'under_review']).optional()
 })
+
+export const getReviewQueueResponseVisitDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getReviewQueueResponseDueDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
 
 export const GetReviewQueueResponseItem = zod.object({
   "id": zod.number().int(),
@@ -1461,8 +1614,8 @@ export const GetReviewQueueResponseItem = zod.object({
   "storeCode": zod.string(),
   "storeRegion": zod.string(),
   "storeCity": zod.string(),
-  "visitDate": zod.coerce.date(),
-  "dueDate": zod.coerce.date(),
+  "visitDate": zod.string().regex(getReviewQueueResponseVisitDateRegExp),
+  "dueDate": zod.string().regex(getReviewQueueResponseDueDateRegExp),
   "status": zod.enum(['draft', 'submitted', 'under_review', 'approved', 'rejected', 'needs_correction']),
   "score": zod.number().nullable(),
   "comment": zod.string().nullable(),
@@ -1481,12 +1634,20 @@ export const GetReviewQueueResponse = zod.array(GetReviewQueueResponseItem)
 /**
  * @summary Reports that already received a decision
  */
+export const getReviewHistoryQueryFromRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getReviewHistoryQueryToRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
 export const GetReviewHistoryQueryParams = zod.object({
   "search": zod.coerce.string().optional(),
-  "status": zod.enum(['draft', 'submitted', 'under_review', 'approved', 'rejected', 'needs_correction']).optional(),
-  "from": zod.date().optional(),
-  "to": zod.date().optional()
+  "status": zod.enum(['approved', 'rejected', 'needs_correction']).optional(),
+  "from": zod.coerce.string().regex(getReviewHistoryQueryFromRegExp).optional(),
+  "to": zod.coerce.string().regex(getReviewHistoryQueryToRegExp).optional()
 })
+
+export const getReviewHistoryResponseVisitDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getReviewHistoryResponseDueDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
 
 export const GetReviewHistoryResponseItem = zod.object({
   "id": zod.number().int(),
@@ -1498,8 +1659,8 @@ export const GetReviewHistoryResponseItem = zod.object({
   "storeCode": zod.string(),
   "storeRegion": zod.string(),
   "storeCity": zod.string(),
-  "visitDate": zod.coerce.date(),
-  "dueDate": zod.coerce.date(),
+  "visitDate": zod.string().regex(getReviewHistoryResponseVisitDateRegExp),
+  "dueDate": zod.string().regex(getReviewHistoryResponseDueDateRegExp),
   "status": zod.enum(['draft', 'submitted', 'under_review', 'approved', 'rejected', 'needs_correction']),
   "score": zod.number().nullable(),
   "comment": zod.string().nullable(),
@@ -1527,6 +1688,10 @@ export const DecideReviewBody = zod.object({
   "comment": zod.string().nullish()
 })
 
+export const decideReviewResponseVisitDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const decideReviewResponseDueDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
 export const DecideReviewResponse = zod.object({
   "id": zod.number().int(),
   "taskId": zod.number().int(),
@@ -1537,8 +1702,8 @@ export const DecideReviewResponse = zod.object({
   "storeCode": zod.string(),
   "storeRegion": zod.string(),
   "storeCity": zod.string(),
-  "visitDate": zod.coerce.date(),
-  "dueDate": zod.coerce.date(),
+  "visitDate": zod.string().regex(decideReviewResponseVisitDateRegExp),
+  "dueDate": zod.string().regex(decideReviewResponseDueDateRegExp),
   "instructions": zod.string(),
   "questionnaireId": zod.number().int().nullable(),
   "questionnaireTitle": zod.string().nullable(),
@@ -1580,6 +1745,12 @@ export const DecideReviewResponse = zod.object({
 /**
  * @summary Scorecards, trends and rankings for the executive region
  */
+export const getRegionalOverviewResponseTopStoresItemLastVisitDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getRegionalOverviewResponseFocusStoresItemLastVisitDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getRegionalOverviewResponseRecentReportsItemVisitDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getRegionalOverviewResponseRecentReportsItemDueDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
 export const GetRegionalOverviewResponse = zod.object({
   "region": zod.string().nullable(),
   "stores": zod.number().int(),
@@ -1602,7 +1773,7 @@ export const GetRegionalOverviewResponse = zod.object({
   "city": zod.string(),
   "visits": zod.number().int(),
   "averageScore": zod.number().nullable(),
-  "lastVisitDate": zod.coerce.date().nullable(),
+  "lastVisitDate": zod.string().regex(getRegionalOverviewResponseTopStoresItemLastVisitDateRegExp).nullable(),
   "lastScore": zod.number().nullable(),
   "previousScore": zod.number().nullable(),
   "trend": zod.number().nullable()
@@ -1616,7 +1787,7 @@ export const GetRegionalOverviewResponse = zod.object({
   "city": zod.string(),
   "visits": zod.number().int(),
   "averageScore": zod.number().nullable(),
-  "lastVisitDate": zod.coerce.date().nullable(),
+  "lastVisitDate": zod.string().regex(getRegionalOverviewResponseFocusStoresItemLastVisitDateRegExp).nullable(),
   "lastScore": zod.number().nullable(),
   "previousScore": zod.number().nullable(),
   "trend": zod.number().nullable()
@@ -1631,8 +1802,8 @@ export const GetRegionalOverviewResponse = zod.object({
   "storeCode": zod.string(),
   "storeRegion": zod.string(),
   "storeCity": zod.string(),
-  "visitDate": zod.coerce.date(),
-  "dueDate": zod.coerce.date(),
+  "visitDate": zod.string().regex(getRegionalOverviewResponseRecentReportsItemVisitDateRegExp),
+  "dueDate": zod.string().regex(getRegionalOverviewResponseRecentReportsItemDueDateRegExp),
   "status": zod.enum(['draft', 'submitted', 'under_review', 'approved', 'rejected', 'needs_correction']),
   "score": zod.number().nullable(),
   "comment": zod.string().nullable(),
@@ -1655,6 +1826,9 @@ export const GetRegionalScorecardsQueryParams = zod.object({
   "search": zod.coerce.string().optional()
 })
 
+export const getRegionalScorecardsResponseLastVisitDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
 export const GetRegionalScorecardsResponseItem = zod.object({
   "storeId": zod.number().int(),
   "storeName": zod.string(),
@@ -1664,7 +1838,7 @@ export const GetRegionalScorecardsResponseItem = zod.object({
   "city": zod.string(),
   "visits": zod.number().int(),
   "averageScore": zod.number().nullable(),
-  "lastVisitDate": zod.coerce.date().nullable(),
+  "lastVisitDate": zod.string().regex(getRegionalScorecardsResponseLastVisitDateRegExp).nullable(),
   "lastScore": zod.number().nullable(),
   "previousScore": zod.number().nullable(),
   "trend": zod.number().nullable()
@@ -1675,6 +1849,11 @@ export const GetRegionalScorecardsResponse = zod.array(GetRegionalScorecardsResp
 /**
  * @summary Compare stores inside the region against the network average
  */
+export const getRegionalComparisonResponseTopStoreLastVisitDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getRegionalComparisonResponseBottomStoreLastVisitDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getRegionalComparisonResponseScorecardsItemLastVisitDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
 export const GetRegionalComparisonResponse = zod.object({
   "region": zod.string().nullable(),
   "stores": zod.number().int(),
@@ -1690,7 +1869,7 @@ export const GetRegionalComparisonResponse = zod.object({
   "city": zod.string(),
   "visits": zod.number().int(),
   "averageScore": zod.number().nullable(),
-  "lastVisitDate": zod.coerce.date().nullable(),
+  "lastVisitDate": zod.string().regex(getRegionalComparisonResponseTopStoreLastVisitDateRegExp).nullable(),
   "lastScore": zod.number().nullable(),
   "previousScore": zod.number().nullable(),
   "trend": zod.number().nullable()
@@ -1704,7 +1883,7 @@ export const GetRegionalComparisonResponse = zod.object({
   "city": zod.string(),
   "visits": zod.number().int(),
   "averageScore": zod.number().nullable(),
-  "lastVisitDate": zod.coerce.date().nullable(),
+  "lastVisitDate": zod.string().regex(getRegionalComparisonResponseBottomStoreLastVisitDateRegExp).nullable(),
   "lastScore": zod.number().nullable(),
   "previousScore": zod.number().nullable(),
   "trend": zod.number().nullable()
@@ -1718,7 +1897,7 @@ export const GetRegionalComparisonResponse = zod.object({
   "city": zod.string(),
   "visits": zod.number().int(),
   "averageScore": zod.number().nullable(),
-  "lastVisitDate": zod.coerce.date().nullable(),
+  "lastVisitDate": zod.string().regex(getRegionalComparisonResponseScorecardsItemLastVisitDateRegExp).nullable(),
   "lastScore": zod.number().nullable(),
   "previousScore": zod.number().nullable(),
   "trend": zod.number().nullable()
@@ -1749,10 +1928,18 @@ export const GetRegionalTrendsResponse = zod.array(GetRegionalTrendsResponseItem
 /**
  * @summary CSV export of scorecards or approved reports for the region
  */
+export const exportRegionalDataQueryFromRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const exportRegionalDataQueryToRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const exportRegionalDataQueryMonthsMin = 3;
+export const exportRegionalDataQueryMonthsMax = 24;
+
+
+
 export const ExportRegionalDataQueryParams = zod.object({
   "dataset": zod.enum(['scorecards', 'reports', 'trends']),
-  "from": zod.date().optional(),
-  "to": zod.date().optional()
+  "from": zod.coerce.string().regex(exportRegionalDataQueryFromRegExp).optional(),
+  "to": zod.coerce.string().regex(exportRegionalDataQueryToRegExp).optional(),
+  "months": zod.coerce.number().int().min(exportRegionalDataQueryMonthsMin).max(exportRegionalDataQueryMonthsMax).optional()
 })
 
 export const ExportRegionalDataResponse = zod.unknown()
@@ -1776,10 +1963,12 @@ export const GetOrganizationResponse = zod.object({
  */
 
 
+export const updateOrganizationBodyNameRegExp = new RegExp('\\S');
+
 
 export const UpdateOrganizationBody = zod.object({
-  "name": zod.string().min(1),
-  "contactEmail": zod.string().nullish(),
+  "name": zod.string().min(1).regex(updateOrganizationBodyNameRegExp),
+  "contactEmail": zod.string().email().nullish(),
   "phone": zod.string().nullish(),
   "address": zod.string().nullish(),
   "website": zod.string().nullish()

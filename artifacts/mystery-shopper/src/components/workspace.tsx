@@ -83,6 +83,7 @@ import type {
   StoreInput,
   Task,
   TaskInput,
+  TaskUpdate,
   User,
   UserInput,
   UserUpdate,
@@ -283,7 +284,11 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
                     role="menuitem"
                     onClick={() => {
                       setMenuOpen(false);
-                      void logout();
+                      void logout().catch(() => {
+                        window.alert(
+                          'You are signed out on this device, but the server could not confirm revocation. Sign in again when the service is available.',
+                        );
+                      });
                     }}
                   >
                     <LogOut size={14} /> Sign out
@@ -1111,10 +1116,19 @@ function TaskForm({
   const update = useUpdateTask();
   const qc = useQueryClient();
   const [error, setError] = useState('');
+  const editableStatuses = ['draft', 'assigned', 'cancelled'] as const;
+  const workflowControlled = Boolean(item && !editableStatuses.includes(item.status as (typeof editableStatuses)[number]));
+  const statusOptions = workflowControlled && item
+    ? [{ value: item.status, label: `${item.status.replaceAll('_', ' ')} (workflow-managed)` }]
+    : [
+        { value: 'draft', label: 'Draft' },
+        { value: 'assigned', label: 'Assigned' },
+        { value: 'cancelled', label: 'Cancelled' },
+      ];
   const submit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const values = new FormData(event.currentTarget);
-    const payload: TaskInput = {
+    const common = {
       storeId: Number(values.get('storeId')),
       shopperId: values.get('shopperId') ? Number(values.get('shopperId')) : null,
       questionnaireId: values.get('questionnaireId') ? Number(values.get('questionnaireId')) : null,
@@ -1122,7 +1136,6 @@ function TaskForm({
       dueDate: String(values.get('dueDate')),
       instructions: String(values.get('instructions')).trim(),
       priority: String(values.get('priority')) as TaskInput['priority'],
-      status: String(values.get('status')) as TaskInput['status'],
     };
     setError('');
     const done = () => {
@@ -1132,8 +1145,21 @@ function TaskForm({
       onDone(item ? 'Task updated.' : 'Visit task created.');
     };
     const failed = (reason: unknown) => setError(messageOf(reason));
-    if (item) update.mutate({ taskId: item.id, data: payload }, { onSuccess: done, onError: failed });
-    else create.mutate({ data: payload }, { onSuccess: done, onError: failed });
+    if (item) {
+      const payload: TaskUpdate = {
+        ...common,
+        ...(!workflowControlled
+          ? { status: String(values.get('status') ?? item.status) as TaskUpdate['status'] }
+          : {}),
+      };
+      update.mutate({ taskId: item.id, data: payload }, { onSuccess: done, onError: failed });
+    } else {
+      const payload: TaskInput = {
+        ...common,
+        status: String(values.get('status') ?? 'draft') as TaskInput['status'],
+      };
+      create.mutate({ data: payload }, { onSuccess: done, onError: failed });
+    }
   };
   return (
     <Modal
@@ -1204,18 +1230,11 @@ function TaskForm({
             ]}
           />
           <Field
-            label="Status"
+            label={workflowControlled ? 'Status (workflow-managed)' : 'Status'}
             name="status"
             defaultValue={item?.status || 'draft'}
-            options={[
-              { value: 'draft', label: 'Draft' },
-              { value: 'assigned', label: 'Assigned' },
-              { value: 'in_progress', label: 'In progress' },
-              { value: 'submitted', label: 'Submitted' },
-              { value: 'approved', label: 'Approved' },
-              { value: 'rejected', label: 'Rejected' },
-              { value: 'cancelled', label: 'Cancelled' },
-            ]}
+            options={statusOptions}
+            disabled={workflowControlled}
           />
           <Field
             label="Instructions"
@@ -1235,6 +1254,10 @@ function TaskForm({
         <FormFooter
           onClose={onClose}
           busy={create.isPending || update.isPending}
+          disabled={
+            stores.isLoading || shoppers.isLoading || questionnaires.isLoading ||
+            stores.isError || shoppers.isError || questionnaires.isError
+          }
           label={item ? 'Save changes' : 'Create task'}
         />
       </form>

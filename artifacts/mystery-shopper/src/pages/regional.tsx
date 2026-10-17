@@ -67,11 +67,15 @@ function ExportButton({
   dataset,
   from,
   to,
+  months,
+  disabled = false,
   label,
 }: {
   dataset: 'scorecards' | 'reports' | 'trends';
   from?: string;
   to?: string;
+  months?: number;
+  disabled?: boolean;
   label: string;
 }) {
   const [busy, setBusy] = useState(false);
@@ -83,6 +87,7 @@ function ExportButton({
         dataset,
         ...(from ? { from } : {}),
         ...(to ? { to } : {}),
+        ...(months ? { months } : {}),
       });
       downloadCsv(String(csv ?? ''), `regional-${dataset}-${new Date().toISOString().slice(0, 10)}.csv`);
       notify(`Exported ${dataset}.csv`);
@@ -93,7 +98,7 @@ function ExportButton({
     }
   };
   return (
-    <button className="btn btn-sm" type="button" onClick={() => void run()} disabled={busy}>
+    <button className="btn btn-sm" type="button" onClick={() => void run()} disabled={busy || disabled}>
       <Download size={14} /> {busy ? 'Exporting…' : label}
     </button>
   );
@@ -538,21 +543,36 @@ function ComparisonPage() {
 
 function TrendsPage() {
   const [months, setMonths] = useState(6);
-  const trends = useGetRegionalTrends({ months });
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
-  const data = useMemo(
-    () => (trends.data ?? []).map((point) => ({ ...point, label: formatMonthLabel(point.month) })),
-    [trends.data],
-  );
+  const trends = useGetRegionalTrends({ months });
+  const invalidRange = Boolean(from && to && from > to);
+  const data = useMemo(() => {
+    if (invalidRange) return [];
+    return (trends.data ?? [])
+      .filter((point) => {
+        const pointMonth = point.month;
+        return (!from || pointMonth >= from.slice(0, 7)) && (!to || pointMonth <= to.slice(0, 7));
+      })
+      .map((point) => ({ ...point, label: formatMonthLabel(point.month) }));
+  }, [trends.data, from, to, invalidRange]);
 
   return (
     <>
       <PageHeading
         kicker="Regional performance"
         title="Performance trends"
-        description="Monthly average score and approved report volume for your region."
-        action={<ExportButton dataset="trends" from={from || undefined} to={to || undefined} label="Export CSV" />}
+        description="Monthly averages and approved report volume. Date filters include matching calendar months."
+        action={
+          <ExportButton
+            dataset="trends"
+            from={from || undefined}
+            to={to || undefined}
+            months={months}
+            disabled={invalidRange}
+            label="Export CSV"
+          />
+        }
       />
       <section className="panel">
         <div className="toolbar">
@@ -583,10 +603,23 @@ function TrendsPage() {
             <input aria-label="To date" type="date" value={to} onChange={(event) => setTo(event.target.value)} />
           </div>
         </div>
+        {invalidRange ? (
+          <p className="field-error" role="alert" style={{ marginTop: 12 }}>
+            The start date must be on or before the end date.
+          </p>
+        ) : null}
         {trends.isLoading ? (
           <StateBlock loading />
         ) : trends.isError ? (
           <StateBlock error onRetry={() => trends.refetch()} />
+        ) : invalidRange ? (
+          <StateBlock empty title="No months match" description="Correct the date range to view or export trends." />
+        ) : !data.length ? (
+          <StateBlock
+            empty
+            title="No months match the selected dates"
+            description={`Choose dates within the selected last ${months} months, or expand the period.`}
+          />
         ) : (
           <>
             <div className="chart-box">

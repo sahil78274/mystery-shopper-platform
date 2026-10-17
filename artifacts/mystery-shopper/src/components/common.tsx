@@ -262,18 +262,20 @@ export function FormFooter({
   busy,
   label,
   closeLabel = 'Cancel',
+  disabled = false,
 }: {
   onClose: () => void;
   busy: boolean;
   label: string;
   closeLabel?: string;
+  disabled?: boolean;
 }) {
   return (
     <footer className="form-footer">
       <button className="btn" type="button" onClick={onClose} disabled={busy}>
         {closeLabel}
       </button>
-      <button className="btn btn-primary" type="submit" disabled={busy}>
+      <button className="btn btn-primary" type="submit" disabled={busy || disabled}>
         {busy ? 'Saving…' : label}
       </button>
     </footer>

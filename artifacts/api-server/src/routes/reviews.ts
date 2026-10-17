@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, ilike, lte, or } from "drizzle-orm";
+import { and, desc, eq, gte, ilike, inArray, lte, or } from "drizzle-orm";
 import { Router, type IRouter } from "express";
 import {
   DecideReviewBody,
@@ -20,6 +20,8 @@ import {
   type SubmissionStatus,
 } from "@workspace/db";
 import { requireRoleOrAdmin, type AuthUser } from "../lib/auth";
+import { validDateRange } from "../lib/validation";
+import { canTransitionReview, isReviewStatusAllowed, REVIEW_DECISION_STATUSES, REVIEWABLE_SUBMISSION_STATUSES } from "../lib/workflow";
 import { recordActivity, roundScore } from "../lib/platform";
 import {
   countEvidence,
@@ -31,7 +33,7 @@ import {
 
 const router: IRouter = Router();
 
-const REVIEW_DECISIONS: SubmissionStatus[] = ["approved", "rejected", "needs_correction"];
+const REVIEW_DECISIONS: SubmissionStatus[] = [...REVIEW_DECISION_STATUSES];
 
 async function listSubmissions(
   user: AuthUser,
@@ -117,7 +119,11 @@ router.get("/reviews/queue", requireRoleOrAdmin("reviewer"), async (req, res): P
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const rows = await listSubmissions(req.authUser!, ["submitted", "under_review"], parsed.data);
+  if (!isReviewStatusAllowed(parsed.data.status, REVIEWABLE_SUBMISSION_STATUSES)) {
+    res.status(400).json({ error: "The review queue only supports submitted or under-review reports." });
+    return;
+  }
+  const rows = await listSubmissions(req.authUser!, [...REVIEWABLE_SUBMISSION_STATUSES], parsed.data);
   res.json(GetReviewQueueResponse.parse(rows));
 });
 
@@ -125,6 +131,14 @@ router.get("/reviews/history", requireRoleOrAdmin("reviewer"), async (req, res):
   const parsed = GetReviewHistoryQueryParams.safeParse(req.query);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  if (!isReviewStatusAllowed(parsed.data.status, REVIEW_DECISIONS)) {
+    res.status(400).json({ error: "Review history only supports reports with a recorded decision." });
+    return;
+  }
+  if (!validDateRange(parsed.data.from, parsed.data.to)) {
+    res.status(400).json({ error: "Enter valid dates with the start date on or before the end date." });
     return;
   }
   const rows = await listSubmissions(req.authUser!, REVIEW_DECISIONS, parsed.data);
@@ -156,31 +170,69 @@ router.post("/reviews/:submissionId", requireRoleOrAdmin("reviewer"), async (req
     res.status(400).json({ error: "Add a reviewer comment explaining this outcome." });
     return;
   }
-  if (!["submitted", "under_review"].includes(row.submission.status) && parsed.data.status === "under_review") {
-    res.status(400).json({ error: "This report has already received a decision." });
+  const result = await db.transaction(async (tx) => {
+    // All workflow writers lock task first, then report, so concurrent review,
+    // shopper edits and task reassignment cannot overwrite one another.
+    const [task] = await tx
+      .select({ id: tasksTable.id })
+      .from(tasksTable)
+      .where(eq(tasksTable.id, row.task.id))
+      .for("update");
+    if (!task) return { ok: false as const, status: 404, message: "Task not found." };
+
+    const [current] = await tx
+      .select()
+      .from(submissionsTable)
+      .where(eq(submissionsTable.id, row.submission.id))
+      .for("update");
+    if (!current) return { ok: false as const, status: 404, message: "Report not found." };
+    if (!canTransitionReview(current.status, parsed.data.status)) {
+      return {
+        ok: false as const,
+        status: 409,
+        message: "This report is no longer awaiting a review decision.",
+      };
+    }
+
+    const now = new Date();
+    const decided = REVIEW_DECISIONS.includes(parsed.data.status as SubmissionStatus);
+    const [updated] = await tx
+      .update(submissionsTable)
+      .set({
+        status: parsed.data.status,
+        reviewerComment: comment,
+        reviewerUserId: user.id,
+        reviewedAt: decided ? now : null,
+      })
+      .where(
+        and(
+          eq(submissionsTable.id, current.id),
+          inArray(submissionsTable.status, [...REVIEWABLE_SUBMISSION_STATUSES]),
+        ),
+      )
+      .returning();
+    if (!updated) {
+      return {
+        ok: false as const,
+        status: 409,
+        message: "This report is no longer awaiting a review decision.",
+      };
+    }
+
+    await tx
+      .update(tasksTable)
+      .set({
+        status: parsed.data.status === "approved" ? "approved" : parsed.data.status,
+        reviewerComment: comment,
+        reviewedAt: decided ? now : null,
+      })
+      .where(eq(tasksTable.id, task.id));
+    return { ok: true as const };
+  });
+  if (!result.ok) {
+    res.status(result.status).json({ error: result.message });
     return;
   }
-
-  const now = new Date();
-  const decided = REVIEW_DECISIONS.includes(parsed.data.status as SubmissionStatus);
-  await db
-    .update(submissionsTable)
-    .set({
-      status: parsed.data.status,
-      reviewerComment: comment,
-      reviewerUserId: user.id,
-      reviewedAt: decided ? now : null,
-    })
-    .where(eq(submissionsTable.id, row.submission.id));
-
-  await db
-    .update(tasksTable)
-    .set({
-      status: parsed.data.status === "approved" ? "approved" : parsed.data.status,
-      reviewerComment: comment,
-      reviewedAt: decided ? now : null,
-    })
-    .where(eq(tasksTable.id, row.task.id));
 
   await recordActivity(
     parsed.data.status,

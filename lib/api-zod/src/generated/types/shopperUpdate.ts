@@ -8,12 +8,21 @@
 import type { AccountStatus } from './accountStatus';
 
 export interface ShopperUpdate {
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @pattern \S
+     */
   fullName?: string;
   email?: string;
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @pattern \S
+     */
   phone?: string;
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @pattern \S
+     */
   city?: string;
   /** @minimum 0 */
   experience?: number;

@@ -14,13 +14,14 @@ import {
 import { db, shoppersTable, usersTable } from "@workspace/db";
 import {
   countActiveAdmins,
+  emailTaken,
   hashPassword,
   normalizeEmail,
   requireRole,
   revokeOtherSessions,
 } from "../lib/auth";
+import { normalizeTextFields } from "../lib/validation";
 import { iso, isUniqueViolation, recordActivity } from "../lib/platform";
-import { emailTaken } from "./auth";
 
 const router: IRouter = Router();
 
@@ -73,7 +74,7 @@ router.get("/users", requireRole("admin"), async (req, res): Promise<void> => {
 });
 
 router.post("/users", requireRole("admin"), async (req, res): Promise<void> => {
-  const parsed = CreateUserBody.safeParse(req.body);
+  const parsed = CreateUserBody.safeParse(normalizeTextFields(req.body, ["fullName", "email", "region"]));
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
@@ -122,7 +123,7 @@ router.post("/users", requireRole("admin"), async (req, res): Promise<void> => {
 
 router.patch("/users/:userId", requireRole("admin"), async (req, res): Promise<void> => {
   const params = UpdateUserParams.safeParse(req.params);
-  const parsed = UpdateUserBody.safeParse(req.body);
+  const parsed = UpdateUserBody.safeParse(normalizeTextFields(req.body, ["fullName", "email", "region"]));
   if (!params.success || !parsed.success) {
     res.status(400).json({
       error: !params.success ? params.error.message : parsed.error?.message ?? "Invalid account data.",

@@ -18,6 +18,8 @@ import {
   tasksTable,
 } from "@workspace/db";
 import { requireAuth, requireRole } from "../lib/auth";
+import { normalizeTextFields } from "../lib/validation";
+import { canAccessQuestionnaire } from "../lib/workflow";
 import { iso, recordActivity } from "../lib/platform";
 
 const router: IRouter = Router();
@@ -34,10 +36,32 @@ function validQuestions(questions: QuestionValue[]): boolean {
   return questions.every((question) => {
     if (!question.prompt.trim()) return false;
     if (question.type === "single_choice") {
-      return question.options.length >= 2;
+      const options = question.options.map((option) => option.trim());
+      return options.length >= 2 && options.every(Boolean) && new Set(options).size === options.length;
     }
     return question.options.length === 0;
   });
+}
+
+function normalizeQuestionnaireBody(body: unknown): unknown {
+  const normalized = normalizeTextFields(body, ["title", "description"]);
+  if (!normalized || typeof normalized !== "object" || Array.isArray(normalized)) return normalized;
+  const value = normalized as Record<string, unknown>;
+  if (!Array.isArray(value.questions)) return value;
+  return {
+    ...value,
+    questions: value.questions.map((question) => {
+      if (!question || typeof question !== "object" || Array.isArray(question)) return question;
+      const item = question as Record<string, unknown>;
+      return {
+        ...item,
+        ...(typeof item.prompt === "string" ? { prompt: item.prompt.trim() } : {}),
+        ...(Array.isArray(item.options)
+          ? { options: item.options.map((option) => typeof option === "string" ? option.trim() : option) }
+          : {}),
+      };
+    }),
+  };
 }
 
 async function getQuestionnaireRow(questionnaireId: number) {
@@ -68,7 +92,23 @@ router.get("/questionnaires", requireAuth, async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+  const user = req.authUser!;
+  if (user.role !== "admin" && user.role !== "mystery_shopper") {
+    res.status(403).json({ error: "You do not have access to questionnaires." });
+    return;
+  }
   const conditions = [];
+  if (user.role === "mystery_shopper") {
+    if (!user.shopperId) {
+      res.json(GetQuestionnairesResponse.parse([]));
+      return;
+    }
+    conditions.push(sql`exists (
+      select 1 from ${tasksTable}
+      where ${tasksTable.questionnaireId} = ${questionnairesTable.id}
+        and ${tasksTable.shopperId} = ${user.shopperId}
+    )`);
+  }
   if (parsed.data.search) {
     const search = `%${parsed.data.search}%`;
     conditions.push(
@@ -93,7 +133,7 @@ router.get("/questionnaires", requireAuth, async (req, res): Promise<void> => {
 });
 
 router.post("/questionnaires", requireRole("admin"), async (req, res): Promise<void> => {
-  const parsed = CreateQuestionnaireBody.safeParse(req.body);
+  const parsed = CreateQuestionnaireBody.safeParse(normalizeQuestionnaireBody(req.body));
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
@@ -148,6 +188,7 @@ router.get(
       return;
     }
     const user = req.authUser!;
+    let assignedToShopper = false;
     if (user.role === "mystery_shopper") {
       // A shopper may only read a questionnaire that one of their own visits uses.
       const owned = await db
@@ -160,10 +201,11 @@ router.get(
           ),
         )
         .limit(1);
-      if (!owned.length) {
-        res.status(403).json({ error: "You cannot access this questionnaire." });
-        return;
-      }
+      assignedToShopper = owned.length > 0;
+    }
+    if (!canAccessQuestionnaire(user.role, assignedToShopper)) {
+      res.status(403).json({ error: "You cannot access this questionnaire." });
+      return;
     }
     const result = await getQuestionnaireRow(params.data.questionnaireId);
     if (!result) {
@@ -179,7 +221,7 @@ router.patch(
   requireRole("admin"),
   async (req, res): Promise<void> => {
     const params = UpdateQuestionnaireParams.safeParse(req.params);
-    const parsed = UpdateQuestionnaireBody.safeParse(req.body);
+    const parsed = UpdateQuestionnaireBody.safeParse(normalizeQuestionnaireBody(req.body));
     if (!params.success || !parsed.success) {
       res.status(400).json({
         error: !params.success

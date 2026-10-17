@@ -42,9 +42,26 @@ import {
 } from '@/components/common';
 import { formatDate, formatDateTime, formatScore } from '@/lib/format';
 import { useAuth } from '@/lib/auth';
+import { EvidenceCard } from '@/components/evidence';
 
 const OPEN_STATUSES = ['assigned', 'in_progress', 'needs_correction'];
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
+const ALLOWED_PHOTO_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif']);
+const PHOTO_TYPE_BY_EXTENSION: Record<string, string> = {
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  webp: 'image/webp',
+  heic: 'image/heic',
+  heif: 'image/heif',
+};
+
+function photoMimeType(file: File): string | null {
+  const declared = file.type.trim().toLowerCase();
+  if (declared) return ALLOWED_PHOTO_TYPES.has(declared) ? declared : null;
+  const extension = file.name.toLowerCase().split('.').pop() ?? '';
+  return PHOTO_TYPE_BY_EXTENSION[extension] ?? null;
+}
 
 type AnswerValue = { valueText: string; valueNumber: number | null; valueBoolean: boolean | null };
 
@@ -492,8 +509,9 @@ function AssignmentDetail({ taskId }: { taskId: number }) {
       setError('Photos must be 5 MB or smaller.');
       return;
     }
-    if (!file.type.startsWith('image/')) {
-      setError('Only image files can be attached as evidence.');
+    const mimeType = photoMimeType(file);
+    if (!mimeType) {
+      setError('Choose a JPEG, PNG, WebP, HEIC or HEIF photo.');
       return;
     }
     setUploading(true);
@@ -503,7 +521,7 @@ function AssignmentDetail({ taskId }: { taskId: number }) {
       addEvidence.mutate(
         {
           submissionId: existingId,
-          data: { fileName: file.name, mimeType: file.type || 'image/jpeg', data: base64, caption: null },
+          data: { fileName: file.name, mimeType, data: base64, caption: null },
         },
         {
           onSuccess: (updated) => {
@@ -687,7 +705,7 @@ function AssignmentDetail({ taskId }: { taskId: number }) {
               <input
                 ref={fileInput}
                 type="file"
-                accept="image/*"
+                accept=".jpg,.jpeg,.png,.webp,.heic,.heif,image/jpeg,image/png,image/webp,image/heic,image/heif"
                 className="visually-hidden"
                 onChange={(event) => {
                   const file = event.target.files?.[0];
@@ -699,23 +717,18 @@ function AssignmentDetail({ taskId }: { taskId: number }) {
             {detail.evidence.length ? (
               <div className="evidence-grid">
                 {detail.evidence.map((item) => (
-                  <figure className="evidence-card" key={item.id}>
-                    <img src={item.url} alt={item.fileName} loading="lazy" />
-                    <figcaption>
-                      <strong>{item.fileName}</strong>
-                      <span>{Math.max(1, Math.round(item.byteSize / 1024))} KB</span>
-                      {editable && (
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-danger"
-                          onClick={() => removePhoto(item.id)}
-                          disabled={removeEvidence.isPending}
-                        >
-                          <Trash2 size={13} /> Remove
-                        </button>
-                      )}
-                    </figcaption>
-                  </figure>
+                  <EvidenceCard key={item.id} submissionId={detail.id} item={item}>
+                    {editable ? (
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-danger"
+                        onClick={() => removePhoto(item.id)}
+                        disabled={removeEvidence.isPending}
+                      >
+                        <Trash2 size={13} /> Remove
+                      </button>
+                    ) : null}
+                  </EvidenceCard>
                 ))}
               </div>
             ) : (
@@ -932,13 +945,7 @@ function SubmissionView({ submissionId }: { submissionId: number }) {
             {submission.evidence.length ? (
               <div className="evidence-grid">
                 {submission.evidence.map((item) => (
-                  <figure className="evidence-card" key={item.id}>
-                    <img src={item.url} alt={item.fileName} loading="lazy" />
-                    <figcaption>
-                      <strong>{item.fileName}</strong>
-                      <span>{Math.max(1, Math.round(item.byteSize / 1024))} KB</span>
-                    </figcaption>
-                  </figure>
+                  <EvidenceCard key={item.id} submissionId={submission.id} item={item} />
                 ))}
               </div>
             ) : (

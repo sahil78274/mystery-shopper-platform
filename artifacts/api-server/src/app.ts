@@ -5,6 +5,7 @@ import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { attachUser } from "./lib/auth";
+import { classifyRequestBodyError } from "./lib/http-error";
 
 const app: Express = express();
 
@@ -45,7 +46,17 @@ app.use(async (req, _res, next) => {
 });
 
 app.use("/api", router);
+app.use("/api", (_req, res) => {
+  res.status(404).json({ error: "API endpoint not found." });
+});
 app.use(((error, req, res, _next) => {
+  const bodyError = classifyRequestBodyError(error);
+  if (bodyError) {
+    // Parser errors can carry the raw request body; log only the safe error type.
+    req.log.warn({ status: bodyError.status, type: bodyError.type }, "Rejected request body");
+    res.status(bodyError.status).json({ error: bodyError.message });
+    return;
+  }
   req.log.error({ err: error }, "Unhandled API request");
   if (res.headersSent) return;
   res.status(500).json({ error: "An unexpected server error occurred." });

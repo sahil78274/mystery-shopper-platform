@@ -9,7 +9,10 @@ import type { QuestionInput } from './questionInput';
 import type { QuestionnaireStatus } from './questionnaireStatus';
 
 export interface QuestionnaireInput {
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @pattern \S
+     */
   title: string;
   description: string;
   status: QuestionnaireStatus;

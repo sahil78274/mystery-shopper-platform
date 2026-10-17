@@ -11,6 +11,8 @@ import {
   Search,
 } from 'lucide-react';
 import {
+  getGetReviewHistoryQueryKey,
+  getGetReviewOverviewQueryKey,
   getGetReviewQueueQueryKey,
   getGetSubmissionQueryKey,
   getGetSubmissionsQueryKey,
@@ -30,22 +32,14 @@ import {
   useNotify,
 } from '@/components/common';
 import { formatDate, formatDateTime, formatScore } from '@/lib/format';
+import { csvRow } from '@/lib/csv';
 import { useAuth } from '@/lib/auth';
+import { EvidenceCard } from '@/components/evidence';
 
 const REPORT_PAGE_SIZE = 10;
 
 export function canReview(role?: string | null): boolean {
   return role === 'admin' || role === 'reviewer';
-}
-
-function downloadEvidence(url: string, fileName: string) {
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = fileName;
-  link.rel = 'noopener';
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
 }
 
 function ReviewPanel({
@@ -85,6 +79,8 @@ function ReviewPanel({
           qc.invalidateQueries({ queryKey: getGetSubmissionsQueryKey() });
           qc.invalidateQueries({ queryKey: getGetSubmissionQueryKey(submission.id) });
           qc.invalidateQueries({ queryKey: getGetReviewQueueQueryKey() });
+          qc.invalidateQueries({ queryKey: getGetReviewHistoryQueryKey() });
+          qc.invalidateQueries({ queryKey: getGetReviewOverviewQueryKey() });
           setSaved(`Review saved — report is now ${updated.status.replaceAll('_', ' ')}.`);
           onDone(`Report #${submission.id} updated.`);
         },
@@ -320,23 +316,14 @@ function ReportDetail({
           </div>
           {submission.evidence.length ? (
             <div className="evidence-grid">
-              {submission.evidence.map((item) => (
-                <figure className="evidence-card" key={item.id}>
-                  <img src={item.url} alt={item.caption || item.fileName} loading="lazy" />
-                  <figcaption>
-                    <strong>{item.fileName}</strong>
-                    <span>{Math.max(1, Math.round(item.byteSize / 1024))} KB · {formatDate(item.createdAt)}</span>
-                    {item.caption && <span>{item.caption}</span>}
-                    <button
-                      type="button"
-                      className="btn btn-sm"
-                      onClick={() => downloadEvidence(item.url, item.fileName)}
-                    >
-                      <Download size={13} /> Download
-                    </button>
-                  </figcaption>
-                </figure>
-              ))}
+                {submission.evidence.map((item) => (
+                  <EvidenceCard
+                    key={item.id}
+                    submissionId={submission.id}
+                    item={item}
+                    showDownload
+                  />
+                ))}
             </div>
           ) : (
             <div className="notice report-unavailable" data-testid="report-content-unavailable">
@@ -382,6 +369,7 @@ export function ReportsPage() {
   const { message: toast, notify } = useNotify();
 
   const reports = useMemo(() => submissions.data ?? [], [submissions.data]);
+  const invalidDateRange = Boolean(fromDate && toDate && fromDate > toDate);
   const stores = useMemo(
     () => Array.from(new Set(reports.map((report) => report.storeName).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
     [reports],
@@ -442,27 +430,25 @@ export function ReportsPage() {
       'Reviewer',
       'Reviewer comment',
     ];
-    const lines = filtered.map((report) =>
-      [
-        report.id,
-        report.storeName,
-        report.storeCode,
-        report.storeRegion,
-        report.shopperName ?? '',
-        report.visitDate,
-        report.submittedAt ?? '',
-        report.score ?? '',
-        report.status,
-        report.reviewerName ?? '',
-        report.reviewerComment ?? '',
-      ]
-        .map((value) => {
-          const text = String(value ?? '').replaceAll('"', '""');
-          return /[",\n]/.test(text) ? `"${text}"` : text;
-        })
-        .join(','),
-    );
-    const blob = new Blob([[header.join(','), ...lines].join('\n')], { type: 'text/csv;charset=utf-8' });
+    const csv = [
+      csvRow(header),
+      ...filtered.map((report) =>
+        csvRow([
+          report.id,
+          report.storeName,
+          report.storeCode,
+          report.storeRegion,
+          report.shopperName ?? "",
+          report.visitDate,
+          report.submittedAt ?? "",
+          report.score ?? "",
+          report.status,
+          report.reviewerName ?? "",
+          report.reviewerComment ?? "",
+        ]),
+      ),
+    ].join("");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -544,7 +530,10 @@ export function ReportsPage() {
                 }}
               >
                 <option value="">All statuses</option>
-                {['draft', 'submitted', 'under_review', 'approved', 'rejected', 'needs_correction'].map((value) => (
+                {(user?.role === 'admin' || user?.role === 'mystery_shopper'
+                  ? ['draft', 'submitted', 'under_review', 'approved', 'rejected', 'needs_correction']
+                  : ['submitted', 'under_review', 'approved', 'rejected', 'needs_correction']
+                ).map((value) => (
                   <option value={value} key={value}>
                     {value.replaceAll('_', ' ')}
                   </option>
@@ -602,7 +591,11 @@ export function ReportsPage() {
                 Clear filters
               </button>
             </div>
-            {!reports.length ? (
+            {invalidDateRange ? (
+              <p className="field-error" role="alert" style={{ marginTop: 12 }}>
+                The submission start date must be on or before the end date.
+              </p>
+            ) : !reports.length ? (
               <StateBlock
                 empty
                 title="No reports yet"

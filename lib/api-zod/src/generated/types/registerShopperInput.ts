@@ -7,14 +7,23 @@
  */
 
 export interface RegisterShopperInput {
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @pattern \S
+     */
   fullName: string;
   email: string;
   /** @minLength 8 */
   password: string;
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @pattern \S
+     */
   phone: string;
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @pattern \S
+     */
   city: string;
   /** @minimum 0 */
   experience?: number;

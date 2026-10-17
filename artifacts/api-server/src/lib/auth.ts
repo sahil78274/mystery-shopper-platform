@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
-import { and, eq, lt, ne } from "drizzle-orm";
+import { and, eq, lt, ne, sql } from "drizzle-orm";
 import type { NextFunction, Request, Response } from "express";
 import {
   db,
@@ -16,6 +16,7 @@ import {
 
 export { PASSWORD_MIN_LENGTH, hashPassword, verifyPassword };
 import { logger } from "./logger";
+import { normalizedRegionScope } from "./workflow";
 
 export function generateSessionToken(): string {
   return randomBytes(32).toString("base64url");
@@ -46,7 +47,7 @@ declare global {
   }
 }
 
-function isUserRole(value: string): value is UserRole {
+export function isUserRole(value: string): value is UserRole {
   return (USER_ROLES as readonly string[]).includes(value);
 }
 
@@ -59,12 +60,12 @@ async function loadAuthUser(userId: number): Promise<AuthUser | null> {
     .from(usersTable)
     .leftJoin(shoppersTable, eq(shoppersTable.userId, usersTable.id))
     .where(eq(usersTable.id, userId));
-  if (!row) return null;
+  if (!row || !isUserRole(row.user.role)) return null;
   return {
     id: row.user.id,
     fullName: row.user.fullName,
     email: row.user.email,
-    role: isUserRole(row.user.role) ? row.user.role : "mystery_shopper",
+    role: row.user.role,
     accountStatus: row.user.accountStatus,
     region: row.user.region,
     shopperId: row.shopperId ?? null,
@@ -117,8 +118,7 @@ export async function attachUser(req: Request): Promise<void> {
   if (!user || user.accountStatus !== "active") return;
   req.authUser = user;
   req.authToken = token;
-  // Sliding expiry: keep active sessions alive, but never extend past 14 days
-  // from the original login.
+  // Record activity only; the 14-day expiry remains fixed from login.
   await db
     .update(sessionsTable)
     .set({ lastUsedAt: new Date() })
@@ -163,6 +163,16 @@ export function requireRoleOrAdmin(...roles: UserRole[]) {
   return requireRole("admin", ...roles);
 }
 
+/** Regional accounts without an assigned region must never fall back to network-wide scope. */
+export function requireAssignedRegion(req: Request, res: Response, next: NextFunction): void {
+  const user = req.authUser;
+  if (user?.role === "regional_executive" && !user.region?.trim()) {
+    res.status(403).json({ error: "Your account is not assigned to a region." });
+    return;
+  }
+  next();
+}
+
 export function isAdmin(user: AuthUser | undefined): boolean {
   return user?.role === "admin";
 }
@@ -171,9 +181,9 @@ export function canReview(user: AuthUser | undefined): boolean {
   return user?.role === "admin" || user?.role === "reviewer";
 }
 
-/** The region a query must be scoped to, or null for unrestricted roles. */
+/** The region a query must be scoped to, or null for unrestricted/unassigned roles. */
 export function regionScopeFor(user: AuthUser): string | null {
-  return user.role === "regional_executive" ? user.region : null;
+  return normalizedRegionScope(user.role, user.region);
 }
 
 /** Shoppers may only ever touch their own shopper profile. */
@@ -189,8 +199,23 @@ export async function findUserByEmail(email: string) {
   const [row] = await db
     .select()
     .from(usersTable)
-    .where(eq(usersTable.email, normalizeEmail(email)));
+    .where(sql`lower(${usersTable.email}) = ${normalizeEmail(email)}`)
+    .limit(1);
   return row ?? null;
+}
+
+export async function emailTaken(email: string, exceptUserId?: number): Promise<boolean> {
+  const match = await findUserByEmail(email);
+  return Boolean(match && match.id !== exceptUserId);
+}
+
+export async function shopperEmailTaken(email: string, exceptShopperId?: number): Promise<boolean> {
+  const [match] = await db
+    .select({ id: shoppersTable.id })
+    .from(shoppersTable)
+    .where(sql`lower(${shoppersTable.email}) = ${normalizeEmail(email)}`)
+    .limit(1);
+  return Boolean(match && match.id !== exceptShopperId);
 }
 
 /** Used to stop the last administrator from locking themselves out. */

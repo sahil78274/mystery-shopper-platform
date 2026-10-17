@@ -1,12 +1,13 @@
 import { createInsertSchema } from "drizzle-zod";
-import { integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { integer, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { z } from "zod/v4";
 import { usersTable } from "./users";
 
 export const shoppersTable = pgTable("shoppers", {
   id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
   fullName: text("full_name").notNull(),
-  email: text("email").notNull().unique(),
+  email: text("email").notNull(),
   phone: text("phone").notNull(),
   city: text("city").notNull(),
   experience: integer("experience").notNull().default(0),
@@ -21,7 +22,9 @@ export const shoppersTable = pgTable("shoppers", {
   }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
-});
+}, (table) => [
+  uniqueIndex("shoppers_email_lower_unique").on(sql`lower(${table.email})`),
+]);
 
 export const insertShopperSchema = createInsertSchema(shoppersTable).omit({
   decisionReason: true,

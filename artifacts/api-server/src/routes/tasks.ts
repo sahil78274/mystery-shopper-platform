@@ -1,4 +1,4 @@
-import { and, desc, eq, ilike, or } from "drizzle-orm";
+import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { Router, type IRouter } from "express";
 import {
   CreateTaskBody,
@@ -16,10 +16,17 @@ import {
   questionnairesTable,
   shoppersTable,
   storesTable,
+  submissionsTable,
   tasksTable,
 } from "@workspace/db";
-import { requireAuth, requireRole, regionScopeFor } from "../lib/auth";
-import { iso, recordActivity, validDate } from "../lib/platform";
+import { requireAssignedRegion, requireRole, regionScopeFor } from "../lib/auth";
+import { normalizeTextFields, validDate } from "../lib/validation";
+import {
+  ADMIN_MANAGED_TASK_STATUSES,
+  canChangeTaskStore,
+  canReassignTask,
+} from "../lib/workflow";
+import { iso, recordActivity } from "../lib/platform";
 
 const router: IRouter = Router();
 
@@ -88,7 +95,7 @@ function hasValidDates(visitDate: string, dueDate: string): boolean {
   return validDate(visitDate) && validDate(dueDate) && dueDate >= visitDate;
 }
 
-router.get("/tasks", requireAuth, async (req, res): Promise<void> => {
+router.get("/tasks", requireRole("admin", "mystery_shopper", "regional_executive"), requireAssignedRegion, async (req, res): Promise<void> => {
   const parsed = GetTasksQueryParams.safeParse(req.query);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -105,7 +112,9 @@ router.get("/tasks", requireAuth, async (req, res): Promise<void> => {
     conditions.push(eq(tasksTable.shopperId, user.shopperId));
   }
   const scopedRegion = regionScopeFor(user);
-  if (scopedRegion) conditions.push(eq(storesTable.region, scopedRegion));
+  if (user.role === "regional_executive") {
+    conditions.push(scopedRegion ? eq(storesTable.region, scopedRegion) : sql`false`);
+  }
   if (parsed.data.status) {
     conditions.push(eq(tasksTable.status, parsed.data.status));
   }
@@ -141,12 +150,16 @@ router.get("/tasks", requireAuth, async (req, res): Promise<void> => {
 });
 
 router.post("/tasks", requireRole("admin"), async (req, res): Promise<void> => {
-  const parsed = CreateTaskBody.safeParse(req.body);
+  const parsed = CreateTaskBody.safeParse(normalizeTextFields(req.body, ["instructions"]));
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
   const input = parsed.data;
+  if (!ADMIN_MANAGED_TASK_STATUSES.includes(input.status)) {
+    res.status(400).json({ error: "Task status is managed by the shopper and review workflow." });
+    return;
+  }
   const visitDate = toCalendarDate(input.visitDate);
   const dueDate = toCalendarDate(input.dueDate);
   if (!hasValidDates(visitDate, dueDate)) {
@@ -204,7 +217,6 @@ router.post("/tasks", requireRole("admin"), async (req, res): Promise<void> => {
       ...input,
       visitDate,
       dueDate,
-      submittedAt: input.status === "submitted" ? new Date() : null,
     })
     .returning();
   const result = await getTaskRow(task.id);
@@ -218,7 +230,7 @@ router.post("/tasks", requireRole("admin"), async (req, res): Promise<void> => {
   res.status(201).json(CreateTaskResponse.parse(result));
 });
 
-router.get("/tasks/:taskId", requireAuth, async (req, res): Promise<void> => {
+router.get("/tasks/:taskId", requireRole("admin", "mystery_shopper", "regional_executive"), requireAssignedRegion, async (req, res): Promise<void> => {
   const params = GetTaskParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -250,7 +262,7 @@ router.get("/tasks/:taskId", requireAuth, async (req, res): Promise<void> => {
 
 router.patch("/tasks/:taskId", requireRole("admin"), async (req, res): Promise<void> => {
   const params = UpdateTaskParams.safeParse(req.params);
-  const parsed = UpdateTaskBody.safeParse(req.body);
+  const parsed = UpdateTaskBody.safeParse(normalizeTextFields(req.body, ["instructions"]));
   if (!params.success || !parsed.success) {
     res.status(400).json({
       error: !params.success
@@ -259,96 +271,141 @@ router.patch("/tasks/:taskId", requireRole("admin"), async (req, res): Promise<v
     });
     return;
   }
-  const [current] = await db
-    .select()
-    .from(tasksTable)
-    .where(eq(tasksTable.id, params.data.taskId));
-  if (!current) {
-    res.status(404).json({ error: "Task not found." });
-    return;
-  }
-  const input = { ...current, ...parsed.data };
-  const visitDate = toCalendarDate(input.visitDate);
-  const dueDate = toCalendarDate(input.dueDate);
-  if (!hasValidDates(visitDate, dueDate)) {
-    res.status(400).json({
-      error: "Enter valid visit and due dates, with the due date on or after the visit date.",
-    });
-    return;
-  }
-  if (
-    !input.shopperId &&
-    !["draft", "cancelled"].includes(input.status)
-  ) {
-    res.status(400).json({
-      error: "Choose an eligible shopper before assigning this task.",
-    });
-    return;
-  }
-  const [store] = await db
-    .select({ id: storesTable.id })
-    .from(storesTable)
-    .where(eq(storesTable.id, input.storeId));
-  if (!store) {
-    res.status(404).json({ error: "Store not found." });
-    return;
-  }
-  if (input.shopperId && !(await isEligibleShopper(input.shopperId))) {
-    res.status(400).json({
-      error: "Only verified, active shoppers can be assigned.",
-    });
-    return;
-  }
-  if (input.questionnaireId) {
-    const [questionnaire] = await db
-      .select({ id: questionnairesTable.id })
-      .from(questionnairesTable)
-      .where(eq(questionnairesTable.id, input.questionnaireId));
-    if (!questionnaire) {
-      res.status(404).json({ error: "Questionnaire not found." });
-      return;
+
+  const result = await db.transaction(async (tx) => {
+    const [current] = await tx
+      .select()
+      .from(tasksTable)
+      .where(eq(tasksTable.id, params.data.taskId))
+      .for("update");
+    if (!current) return { ok: false as const, status: 404, message: "Task not found." };
+
+    const input = { ...current, ...parsed.data };
+    const visitDate = toCalendarDate(input.visitDate);
+    const dueDate = toCalendarDate(input.dueDate);
+    if (!hasValidDates(visitDate, dueDate)) {
+      return {
+        ok: false as const,
+        status: 400,
+        message: "Enter valid visit and due dates, with the due date on or after the visit date.",
+      };
     }
+    if (
+      !input.shopperId &&
+      !["draft", "cancelled"].includes(input.status)
+    ) {
+      return {
+        ok: false as const,
+        status: 400,
+        message: "Choose an eligible shopper before assigning this task.",
+      };
+    }
+    if (
+      parsed.data.status !== undefined &&
+      parsed.data.status !== current.status &&
+      !ADMIN_MANAGED_TASK_STATUSES.includes(parsed.data.status)
+    ) {
+      return {
+        ok: false as const,
+        status: 400,
+        message: "Task status is managed by the shopper and review workflow.",
+      };
+    }
+
+    const [store] = await tx
+      .select({ id: storesTable.id })
+      .from(storesTable)
+      .where(eq(storesTable.id, input.storeId));
+    if (!store) return { ok: false as const, status: 404, message: "Store not found." };
+
+    if (input.shopperId) {
+      const [shopper] = await tx
+        .select({ id: shoppersTable.id })
+        .from(shoppersTable)
+        .where(
+          and(
+            eq(shoppersTable.id, input.shopperId),
+            eq(shoppersTable.verificationStatus, "verified"),
+            eq(shoppersTable.accountStatus, "active"),
+          ),
+        );
+      if (!shopper) {
+        return {
+          ok: false as const,
+          status: 400,
+          message: "Only verified, active shoppers can be assigned.",
+        };
+      }
+    }
+
+    if (input.questionnaireId) {
+      const [questionnaire] = await tx
+        .select({ id: questionnairesTable.id })
+        .from(questionnairesTable)
+        .where(eq(questionnairesTable.id, input.questionnaireId));
+      if (!questionnaire) {
+        return { ok: false as const, status: 404, message: "Questionnaire not found." };
+      }
+    }
+
+    const [existingSubmission] = await tx
+      .select({ shopperId: submissionsTable.shopperId })
+      .from(submissionsTable)
+      .where(eq(submissionsTable.taskId, current.id))
+      .limit(1);
+    const nextShopperId = input.shopperId ?? null;
+    if (!canChangeTaskStore(Boolean(existingSubmission), current.storeId, input.storeId)) {
+      return {
+        ok: false as const,
+        status: 409,
+        message: "This task's store cannot be changed after a report has been started.",
+      };
+    }
+    if (!canReassignTask(Boolean(existingSubmission), existingSubmission?.shopperId ?? null, nextShopperId)) {
+      return {
+        ok: false as const,
+        status: 409,
+        message: "This task already has a report and cannot be reassigned to another shopper.",
+      };
+    }
+    if (existingSubmission && parsed.data.status !== undefined && parsed.data.status !== current.status) {
+      return {
+        ok: false as const,
+        status: 409,
+        message: "This task's status is controlled by its report and review workflow.",
+      };
+    }
+
+    const {
+      visitDate: requestedVisitDate,
+      dueDate: requestedDueDate,
+      ...updates
+    } = parsed.data;
+    const [updated] = await tx
+      .update(tasksTable)
+      .set({
+        ...updates,
+        ...(requestedVisitDate !== undefined ? { visitDate } : {}),
+        ...(requestedDueDate !== undefined ? { dueDate } : {}),
+      })
+      .where(eq(tasksTable.id, current.id))
+      .returning();
+    return { ok: true as const, taskId: updated.id };
+  });
+
+  if (!result.ok) {
+    res.status(result.status).json({ error: result.message });
+    return;
   }
-  const {
-    visitDate: requestedVisitDate,
-    dueDate: requestedDueDate,
-    reviewerComment,
-    ...updates
-  } = parsed.data;
-  const nextStatus = parsed.data.status;
-  const returningToSubmitted =
-    nextStatus === "submitted" && current.status !== "submitted";
-  const enteringReview =
-    nextStatus === "under_review" && current.status !== "under_review";
-  const completingReview = [
-    "approved",
-    "rejected",
-    "needs_correction",
-  ].includes(nextStatus ?? "");
-  const [updated] = await db
-    .update(tasksTable)
-    .set({
-      ...updates,
-      ...(requestedVisitDate !== undefined ? { visitDate } : {}),
-      ...(requestedDueDate !== undefined ? { dueDate } : {}),
-      ...(reviewerComment !== undefined ? { reviewerComment } : {}),
-      ...(returningToSubmitted
-        ? { submittedAt: new Date(), reviewerComment: null, reviewedAt: null }
-        : {}),
-      ...(enteringReview ? { reviewedAt: null } : {}),
-      ...(completingReview ? { reviewedAt: new Date() } : {}),
-    })
-    .where(eq(tasksTable.id, current.id))
-    .returning();
-  const result = await getTaskRow(updated.id);
+  const updated = await getTaskRow(result.taskId);
   await recordActivity(
     "updated",
     "task",
-    updated.id,
-    `Updated task #${updated.id}`,
+    result.taskId,
+    `Updated task #${result.taskId}`,
     req.authUser!.id,
   );
-  res.json(UpdateTaskResponse.parse(result));
+  res.json(UpdateTaskResponse.parse(updated));
 });
 
 export default router;

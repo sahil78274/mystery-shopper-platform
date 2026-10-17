@@ -17,6 +17,7 @@ import {
 } from "@workspace/db";
 import type { AuthUser } from "./auth";
 import { calendarDate, iso, roundScore } from "./platform";
+import { normalizedRegionScope } from "./workflow";
 
 /** Accepts either the pooled database or an open transaction. */
 export type DbClient =
@@ -65,8 +66,9 @@ export function scopeConditions(user: AuthUser) {
     else conditions.push(eq(submissionsTable.shopperId, user.shopperId));
   }
   if (user.role === "regional_executive") {
-    if (!user.region) conditions.push(sql`false`);
-    else conditions.push(eq(storesTable.region, user.region));
+    const scopedRegion = normalizedRegionScope(user.role, user.region);
+    if (!scopedRegion) conditions.push(sql`false`);
+    else conditions.push(eq(storesTable.region, scopedRegion));
   }
   return conditions;
 }
@@ -377,8 +379,8 @@ export async function listShopperSubmissions(user: AuthUser) {
   );
 }
 
-export async function countEvidence(submissionId: number): Promise<number> {
-  const [row] = await db
+export async function countEvidence(submissionId: number, client: DbClient = db): Promise<number> {
+  const [row] = await client
     .select({ value: count() })
     .from(submissionEvidenceTable)
     .where(eq(submissionEvidenceTable.submissionId, submissionId));

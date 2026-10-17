@@ -9,12 +9,21 @@ import type { AccountStatus } from './accountStatus';
 import type { VerificationStatus } from './verificationStatus';
 
 export interface ShopperInput {
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @pattern \S
+     */
   fullName: string;
   email: string;
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @pattern \S
+     */
   phone: string;
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @pattern \S
+     */
   city: string;
   /** @minimum 0 */
   experience: number;

@@ -593,6 +593,7 @@ paths:
       operationId: getSubmissions
       tags: [submissions]
       summary: List reports visible to the current role
+      description: Drafts are visible only to their shopper and administrators; other roles see reports after submission.
       parameters:
         - name: search
           in: query
@@ -605,10 +606,10 @@ paths:
           schema: { type: integer }
         - name: from
           in: query
-          schema: { type: string, format: date }
+          schema: { type: string, pattern: '^\d{4}-\d{2}-\d{2}$' }
         - name: to
           in: query
-          schema: { type: string, format: date }
+          schema: { type: string, pattern: '^\d{4}-\d{2}-\d{2}$' }
       responses:
         "200":
           description: Reports
@@ -663,6 +664,7 @@ paths:
       operationId: getSubmission
       tags: [submissions]
       summary: Report detail with answers and evidence
+      description: Draft reports are private to the assigned shopper and administrators. Other access is limited by region and role.
       responses:
         "200":
           description: Report detail
@@ -785,6 +787,8 @@ paths:
           content:
             image/*:
               schema: { type: string, format: binary }
+            application/octet-stream:
+              schema: { type: string, format: binary }
         "403": { description: You cannot access this report }
         "404": { description: Evidence not found }
   /reviews/overview:
@@ -810,7 +814,9 @@ paths:
           schema: { type: string }
         - name: status
           in: query
-          schema: { $ref: "#/components/schemas/SubmissionStatus" }
+          schema:
+            type: string
+            enum: [submitted, under_review]
       responses:
         "200":
           description: Review queue
@@ -831,13 +837,15 @@ paths:
           schema: { type: string }
         - name: status
           in: query
-          schema: { $ref: "#/components/schemas/SubmissionStatus" }
+          schema:
+            type: string
+            enum: [approved, rejected, needs_correction]
         - name: from
           in: query
-          schema: { type: string, format: date }
+          schema: { type: string, pattern: '^\d{4}-\d{2}-\d{2}$' }
         - name: to
           in: query
-          schema: { type: string, format: date }
+          schema: { type: string, pattern: '^\d{4}-\d{2}-\d{2}$' }
       responses:
         "200":
           description: Review history
@@ -945,10 +953,13 @@ paths:
             enum: [scorecards, reports, trends]
         - name: from
           in: query
-          schema: { type: string, format: date }
+          schema: { type: string, pattern: '^\d{4}-\d{2}-\d{2}$' }
         - name: to
           in: query
-          schema: { type: string, format: date }
+          schema: { type: string, pattern: '^\d{4}-\d{2}-\d{2}$' }
+        - name: months
+          in: query
+          schema: { type: integer, minimum: 3, maximum: 24 }
       responses:
         "200":
           description: CSV file
@@ -1059,6 +1070,9 @@ components:
     TaskStatus:
       type: string
       enum: [draft, assigned, in_progress, submitted, under_review, approved, rejected, needs_correction, cancelled]
+    TaskAdminStatus:
+      type: string
+      enum: [draft, assigned, cancelled]
     TaskPriority:
       type: string
       enum: [low, medium, high, urgent]
@@ -1087,12 +1101,12 @@ components:
     StoreInput:
       type: object
       properties:
-        name: { type: string, minLength: 1 }
-        code: { type: string, minLength: 1 }
-        brandName: { type: string, minLength: 1 }
-        region: { type: string, minLength: 1 }
-        city: { type: string, minLength: 1 }
-        address: { type: string, minLength: 1 }
+        name: { type: string, minLength: 1, pattern: '\S' }
+        code: { type: string, minLength: 1, pattern: '\S' }
+        brandName: { type: string, minLength: 1, pattern: '\S' }
+        region: { type: string, minLength: 1, pattern: '\S' }
+        city: { type: string, minLength: 1, pattern: '\S' }
+        address: { type: string, minLength: 1, pattern: '\S' }
         contactPerson: { type: ["string", "null"] }
         contactPhone: { type: ["string", "null"] }
         status: { $ref: "#/components/schemas/StoreStatus" }
@@ -1100,12 +1114,12 @@ components:
     StoreUpdate:
       type: object
       properties:
-        name: { type: string, minLength: 1 }
-        code: { type: string, minLength: 1 }
-        brandName: { type: string, minLength: 1 }
-        region: { type: string, minLength: 1 }
-        city: { type: string, minLength: 1 }
-        address: { type: string, minLength: 1 }
+        name: { type: string, minLength: 1, pattern: '\S' }
+        code: { type: string, minLength: 1, pattern: '\S' }
+        brandName: { type: string, minLength: 1, pattern: '\S' }
+        region: { type: string, minLength: 1, pattern: '\S' }
+        city: { type: string, minLength: 1, pattern: '\S' }
+        address: { type: string, minLength: 1, pattern: '\S' }
         contactPerson: { type: ["string", "null"] }
         contactPhone: { type: ["string", "null"] }
         status: { $ref: "#/components/schemas/StoreStatus" }
@@ -1128,10 +1142,10 @@ components:
     ShopperInput:
       type: object
       properties:
-        fullName: { type: string, minLength: 1 }
+        fullName: { type: string, minLength: 1, pattern: '\S' }
         email: { type: string, format: email }
-        phone: { type: string, minLength: 1 }
-        city: { type: string, minLength: 1 }
+        phone: { type: string, minLength: 1, pattern: '\S' }
+        city: { type: string, minLength: 1, pattern: '\S' }
         experience: { type: integer, minimum: 0 }
         verificationStatus: { $ref: "#/components/schemas/VerificationStatus" }
         accountStatus: { $ref: "#/components/schemas/AccountStatus" }
@@ -1139,10 +1153,10 @@ components:
     ShopperUpdate:
       type: object
       properties:
-        fullName: { type: string, minLength: 1 }
+        fullName: { type: string, minLength: 1, pattern: '\S' }
         email: { type: string, format: email }
-        phone: { type: string, minLength: 1 }
-        city: { type: string, minLength: 1 }
+        phone: { type: string, minLength: 1, pattern: '\S' }
+        city: { type: string, minLength: 1, pattern: '\S' }
         experience: { type: integer, minimum: 0 }
         accountStatus: { $ref: "#/components/schemas/AccountStatus" }
     VerificationDecisionInput:
@@ -1160,8 +1174,8 @@ components:
         storeId: { type: integer }
         shopperId: { type: ["integer", "null"] }
         questionnaireId: { type: ["integer", "null"] }
-        visitDate: { type: string, format: date }
-        dueDate: { type: string, format: date }
+        visitDate: { type: string, pattern: '^\d{4}-\d{2}-\d{2}$' }
+        dueDate: { type: string, pattern: '^\d{4}-\d{2}-\d{2}$' }
         instructions: { type: string }
         priority: { $ref: "#/components/schemas/TaskPriority" }
         status: { $ref: "#/components/schemas/TaskStatus" }
@@ -1181,11 +1195,11 @@ components:
         storeId: { type: integer }
         shopperId: { type: ["integer", "null"] }
         questionnaireId: { type: ["integer", "null"] }
-        visitDate: { type: string, format: date }
-        dueDate: { type: string, format: date }
-        instructions: { type: string }
+        visitDate: { type: string, pattern: '^\d{4}-\d{2}-\d{2}$' }
+        dueDate: { type: string, pattern: '^\d{4}-\d{2}-\d{2}$' }
+        instructions: { type: string, minLength: 1, pattern: '\S' }
         priority: { $ref: "#/components/schemas/TaskPriority" }
-        status: { $ref: "#/components/schemas/TaskStatus" }
+        status: { $ref: "#/components/schemas/TaskAdminStatus" }
       required: [storeId, visitDate, dueDate, instructions, priority, status]
     TaskUpdate:
       type: object
@@ -1193,12 +1207,11 @@ components:
         storeId: { type: integer }
         shopperId: { type: ["integer", "null"] }
         questionnaireId: { type: ["integer", "null"] }
-        visitDate: { type: string, format: date }
-        dueDate: { type: string, format: date }
-        instructions: { type: string }
+        visitDate: { type: string, pattern: '^\d{4}-\d{2}-\d{2}$' }
+        dueDate: { type: string, pattern: '^\d{4}-\d{2}-\d{2}$' }
+        instructions: { type: string, minLength: 1, pattern: '\S' }
         priority: { $ref: "#/components/schemas/TaskPriority" }
-        status: { $ref: "#/components/schemas/TaskStatus" }
-        reviewerComment: { type: ["string", "null"] }
+        status: { $ref: "#/components/schemas/TaskAdminStatus" }
     Question:
       type: object
       properties:
@@ -1214,13 +1227,13 @@ components:
     QuestionInput:
       type: object
       properties:
-        prompt: { type: string, minLength: 1 }
+        prompt: { type: string, minLength: 1, pattern: '\S' }
         type: { $ref: "#/components/schemas/QuestionType" }
         required: { type: boolean }
         position: { type: integer }
         options:
           type: array
-          items: { type: string }
+          items: { type: string, minLength: 1, pattern: '\S' }
       required: [prompt, type, required, position, options]
     Questionnaire:
       type: object
@@ -1238,7 +1251,7 @@ components:
     QuestionnaireInput:
       type: object
       properties:
-        title: { type: string, minLength: 1 }
+        title: { type: string, minLength: 1, pattern: '\S' }
         description: { type: string }
         status: { $ref: "#/components/schemas/QuestionnaireStatus" }
         questions:
@@ -1248,7 +1261,7 @@ components:
     QuestionnaireUpdate:
       type: object
       properties:
-        title: { type: string, minLength: 1 }
+        title: { type: string, minLength: 1, pattern: '\S' }
         description: { type: string }
         status: { $ref: "#/components/schemas/QuestionnaireStatus" }
         questions:
@@ -1316,7 +1329,7 @@ components:
     UserInput:
       type: object
       properties:
-        fullName: { type: string, minLength: 1 }
+        fullName: { type: string, minLength: 1, pattern: '\S' }
         email: { type: string, format: email }
         password: { type: string, minLength: 8 }
         role: { $ref: "#/components/schemas/UserRole" }
@@ -1325,7 +1338,7 @@ components:
     UserUpdate:
       type: object
       properties:
-        fullName: { type: string, minLength: 1 }
+        fullName: { type: string, minLength: 1, pattern: '\S' }
         email: { type: string, format: email }
         password: { type: string, minLength: 8 }
         role: { $ref: "#/components/schemas/UserRole" }
@@ -1341,11 +1354,11 @@ components:
     RegisterShopperInput:
       type: object
       properties:
-        fullName: { type: string, minLength: 1 }
+        fullName: { type: string, minLength: 1, pattern: '\S' }
         email: { type: string, format: email }
         password: { type: string, minLength: 8 }
-        phone: { type: string, minLength: 1 }
-        city: { type: string, minLength: 1 }
+        phone: { type: string, minLength: 1, pattern: '\S' }
+        city: { type: string, minLength: 1, pattern: '\S' }
         experience: { type: integer, minimum: 0 }
       required: [fullName, email, password, phone, city]
     LoginInput:
@@ -1357,7 +1370,7 @@ components:
     UpdateProfileInput:
       type: object
       properties:
-        fullName: { type: string, minLength: 1 }
+        fullName: { type: string, minLength: 1, pattern: '\S' }
         email: { type: string, format: email }
     ChangePasswordInput:
       type: object
@@ -1420,8 +1433,8 @@ components:
         storeCode: { type: string }
         storeRegion: { type: string }
         storeCity: { type: string }
-        visitDate: { type: string, format: date }
-        dueDate: { type: string, format: date }
+        visitDate: { type: string, pattern: '^\d{4}-\d{2}-\d{2}$' }
+        dueDate: { type: string, pattern: '^\d{4}-\d{2}-\d{2}$' }
         status: { $ref: "#/components/schemas/SubmissionStatus" }
         score: { type: ["number", "null"] }
         comment: { type: ["string", "null"] }
@@ -1446,8 +1459,8 @@ components:
         storeCode: { type: string }
         storeRegion: { type: string }
         storeCity: { type: string }
-        visitDate: { type: string, format: date }
-        dueDate: { type: string, format: date }
+        visitDate: { type: string, pattern: '^\d{4}-\d{2}-\d{2}$' }
+        dueDate: { type: string, pattern: '^\d{4}-\d{2}-\d{2}$' }
         instructions: { type: string }
         questionnaireId: { type: ["integer", "null"] }
         questionnaireTitle: { type: ["string", "null"] }
@@ -1485,9 +1498,9 @@ components:
     EvidenceInput:
       type: object
       properties:
-        fileName: { type: string, minLength: 1 }
-        mimeType: { type: string, minLength: 1 }
-        data: { type: string, minLength: 1 }
+        fileName: { type: string, minLength: 1, pattern: '\S' }
+        mimeType: { type: string, minLength: 1, pattern: '\S' }
+        data: { type: string, minLength: 1, pattern: '\S' }
         caption: { type: ["string", "null"] }
       required: [fileName, mimeType, data]
     ReviewDecisionInput:
@@ -1539,7 +1552,7 @@ components:
         city: { type: string }
         visits: { type: integer }
         averageScore: { type: ["number", "null"] }
-        lastVisitDate: { type: ["string", "null"], format: date }
+        lastVisitDate: { type: ["string", "null"], pattern: '^\d{4}-\d{2}-\d{2}$' }
         lastScore: { type: ["number", "null"] }
         previousScore: { type: ["number", "null"] }
         trend: { type: ["number", "null"] }
@@ -1601,8 +1614,8 @@ components:
     OrganizationSettingsInput:
       type: object
       properties:
-        name: { type: string, minLength: 1 }
-        contactEmail: { type: ["string", "null"] }
+        name: { type: string, minLength: 1, pattern: '\S' }
+        contactEmail: { type: ["string", "null"], format: email }
         phone: { type: ["string", "null"] }
         address: { type: ["string", "null"] }
         website: { type: ["string", "null"] }

@@ -9,7 +9,10 @@ import type { AccountStatus } from './accountStatus';
 import type { UserRole } from './userRole';
 
 export interface UserUpdate {
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @pattern \S
+     */
   fullName?: string;
   email?: string;
   /** @minLength 8 */

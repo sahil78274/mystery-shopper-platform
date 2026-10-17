@@ -20,11 +20,23 @@ import type { AuthUser, LoginInput, RegisterShopperInput } from '@workspace/api-
 // Keep the original key so existing sessions survive the Ricoz branding update.
 const TOKEN_STORAGE_KEY = 'fieldnote.session-token';
 
+function isAuthorizationFailure(reason: unknown): boolean {
+  const status = (reason as { status?: unknown } | null)?.status;
+  return status === 401 || status === 403;
+}
+
+function safeErrorMessage(reason: unknown): string {
+  return reason instanceof Error && reason.message.trim()
+    ? reason.message
+    : 'The account session could not be verified. Check your connection and try again.';
+}
+
 type AuthContextValue = {
   user: AuthUser | null;
   token: string | null;
   /** True while the stored token is being verified on first load. */
   loading: boolean;
+  sessionError: string | null;
   login: (body: LoginInput) => Promise<AuthUser>;
   register: (body: RegisterShopperInput) => Promise<AuthUser>;
   logout: () => Promise<void>;
@@ -55,6 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(() => readToken());
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState<boolean>(() => Boolean(readToken()));
+  const [sessionError, setSessionError] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   // Generated API calls read the token from this getter on every request.
@@ -65,19 +78,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const clearSession = useCallback(() => {
     setToken(null);
     setUser(null);
+    setSessionError(null);
     writeToken(null);
   }, []);
 
   const refresh = useCallback(async () => {
     if (!token) {
       setUser(null);
+      setSessionError(null);
+      setLoading(false);
       return;
     }
+    setLoading(true);
+    setSessionError(null);
     try {
       const account = await getAuthSession();
       setUser(account);
-    } catch {
-      clearSession();
+    } catch (reason) {
+      if (isAuthorizationFailure(reason)) clearSession();
+      else setSessionError(safeErrorMessage(reason));
+    } finally {
+      setLoading(false);
     }
   }, [token, clearSession]);
 
@@ -85,16 +106,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let active = true;
     (async () => {
       if (!token) {
+        setSessionError(null);
         setLoading(false);
         return;
       }
+      setSessionError(null);
       try {
         const account = await getAuthSession();
         if (!active) return;
         setUser(account);
-      } catch {
+      } catch (reason) {
         if (!active) return;
-        clearSession();
+        if (isAuthorizationFailure(reason)) clearSession();
+        else setSessionError(safeErrorMessage(reason));
       } finally {
         if (active) setLoading(false);
       }
@@ -110,6 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       writeToken(session.token);
       setToken(session.token);
       setUser(session.user);
+      setSessionError(null);
       queryClient.clear();
       return session.user;
     },
@@ -122,6 +147,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       writeToken(session.token);
       setToken(session.token);
       setUser(session.user);
+      setSessionError(null);
       queryClient.clear();
       return session.user;
     },
@@ -129,18 +155,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const logout = useCallback(async () => {
+    let requestFailed = false;
+    let requestFailure: unknown;
     try {
       await logoutRequest();
-    } catch {
-      // The local session is cleared even if the server call fails.
+    } catch (reason) {
+      requestFailed = true;
+      requestFailure = reason;
+    } finally {
+      // Clear local credentials even if the server could not be reached.
+      clearSession();
+      queryClient.clear();
     }
-    clearSession();
-    queryClient.clear();
+    if (requestFailed) throw requestFailure;
   }, [clearSession, queryClient]);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ user, token, loading, login, register, logout, refresh, setUser }),
-    [user, token, loading, login, register, logout, refresh],
+    () => ({ user, token, loading, sessionError, login, register, logout, refresh, setUser }),
+    [user, token, loading, sessionError, login, register, logout, refresh],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -95,6 +95,15 @@ export const TaskStatus = {
   cancelled: 'cancelled',
 } as const;
 
+export type TaskAdminStatus = typeof TaskAdminStatus[keyof typeof TaskAdminStatus];
+
+
+export const TaskAdminStatus = {
+  draft: 'draft',
+  assigned: 'assigned',
+  cancelled: 'cancelled',
+} as const;
+
 export type TaskPriority = typeof TaskPriority[keyof typeof TaskPriority];
 
 
@@ -141,17 +150,35 @@ export interface Store {
 }
 
 export interface StoreInput {
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @pattern \S
+     */
   name: string;
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @pattern \S
+     */
   code: string;
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @pattern \S
+     */
   brandName: string;
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @pattern \S
+     */
   region: string;
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @pattern \S
+     */
   city: string;
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @pattern \S
+     */
   address: string;
   /** @nullable */
   contactPerson?: string | null;
@@ -161,17 +188,35 @@ export interface StoreInput {
 }
 
 export interface StoreUpdate {
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @pattern \S
+     */
   name?: string;
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @pattern \S
+     */
   code?: string;
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @pattern \S
+     */
   brandName?: string;
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @pattern \S
+     */
   region?: string;
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @pattern \S
+     */
   city?: string;
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @pattern \S
+     */
   address?: string;
   /** @nullable */
   contactPerson?: string | null;
@@ -198,12 +243,21 @@ export interface Shopper {
 }
 
 export interface ShopperInput {
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @pattern \S
+     */
   fullName: string;
   email: string;
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @pattern \S
+     */
   phone: string;
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @pattern \S
+     */
   city: string;
   /** @minimum 0 */
   experience: number;
@@ -212,12 +266,21 @@ export interface ShopperInput {
 }
 
 export interface ShopperUpdate {
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @pattern \S
+     */
   fullName?: string;
   email?: string;
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @pattern \S
+     */
   phone?: string;
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @pattern \S
+     */
   city?: string;
   /** @minimum 0 */
   experience?: number;
@@ -245,7 +308,9 @@ export interface Task {
   shopperId: number | null;
   /** @nullable */
   questionnaireId: number | null;
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
   visitDate: string;
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
   dueDate: string;
   instructions: string;
   priority: TaskPriority;
@@ -272,11 +337,17 @@ export interface TaskInput {
   shopperId?: number | null;
   /** @nullable */
   questionnaireId?: number | null;
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
   visitDate: string;
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
   dueDate: string;
+  /**
+     * @minLength 1
+     * @pattern \S
+     */
   instructions: string;
   priority: TaskPriority;
-  status: TaskStatus;
+  status: TaskAdminStatus;
 }
 
 export interface TaskUpdate {
@@ -285,13 +356,17 @@ export interface TaskUpdate {
   shopperId?: number | null;
   /** @nullable */
   questionnaireId?: number | null;
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
   visitDate?: string;
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
   dueDate?: string;
+  /**
+     * @minLength 1
+     * @pattern \S
+     */
   instructions?: string;
   priority?: TaskPriority;
-  status?: TaskStatus;
-  /** @nullable */
-  reviewerComment?: string | null;
+  status?: TaskAdminStatus;
 }
 
 export interface Question {
@@ -304,11 +379,18 @@ export interface Question {
 }
 
 export interface QuestionInput {
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @pattern \S
+     */
   prompt: string;
   type: QuestionType;
   required: boolean;
   position: number;
+  /**
+     * @items.minLength 1
+     * @items.pattern \S
+     */
   options: string[];
 }
 
@@ -323,7 +405,10 @@ export interface Questionnaire {
 }
 
 export interface QuestionnaireInput {
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @pattern \S
+     */
   title: string;
   description: string;
   status: QuestionnaireStatus;
@@ -331,7 +416,10 @@ export interface QuestionnaireInput {
 }
 
 export interface QuestionnaireUpdate {
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @pattern \S
+     */
   title?: string;
   description?: string;
   status?: QuestionnaireStatus;
@@ -403,7 +491,10 @@ export interface User {
 }
 
 export interface UserInput {
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @pattern \S
+     */
   fullName: string;
   email: string;
   /** @minLength 8 */
@@ -414,7 +505,10 @@ export interface UserInput {
 }
 
 export interface UserUpdate {
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @pattern \S
+     */
   fullName?: string;
   email?: string;
   /** @minLength 8 */
@@ -432,14 +526,23 @@ export interface AuthSession {
 }
 
 export interface RegisterShopperInput {
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @pattern \S
+     */
   fullName: string;
   email: string;
   /** @minLength 8 */
   password: string;
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @pattern \S
+     */
   phone: string;
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @pattern \S
+     */
   city: string;
   /** @minimum 0 */
   experience?: number;
@@ -452,7 +555,10 @@ export interface LoginInput {
 }
 
 export interface UpdateProfileInput {
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @pattern \S
+     */
   fullName?: string;
   email?: string;
 }
@@ -529,7 +635,9 @@ export interface SubmissionSummary {
   storeCode: string;
   storeRegion: string;
   storeCity: string;
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
   visitDate: string;
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
   dueDate: string;
   status: SubmissionStatus;
   /** @nullable */
@@ -561,7 +669,9 @@ export interface SubmissionDetail {
   storeCode: string;
   storeRegion: string;
   storeCity: string;
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
   visitDate: string;
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
   dueDate: string;
   instructions: string;
   /** @nullable */
@@ -600,11 +710,20 @@ export interface SaveSubmissionInput {
 }
 
 export interface EvidenceInput {
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @pattern \S
+     */
   fileName: string;
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @pattern \S
+     */
   mimeType: string;
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @pattern \S
+     */
   data: string;
   /** @nullable */
   caption?: string | null;
@@ -660,7 +779,10 @@ export interface StoreScorecard {
   visits: number;
   /** @nullable */
   averageScore: number | null;
-  /** @nullable */
+  /**
+     * @nullable
+     * @pattern ^\d{4}-\d{2}-\d{2}$
+     */
   lastVisitDate: string | null;
   /** @nullable */
   lastScore: number | null;
@@ -722,7 +844,10 @@ export interface OrganizationSettings {
 }
 
 export interface OrganizationSettingsInput {
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @pattern \S
+     */
   name: string;
   /** @nullable */
   contactEmail?: string | null;
@@ -786,7 +911,13 @@ export type GetSubmissionsParams = {
 search?: string;
 status?: SubmissionStatus;
 storeId?: number;
+/**
+ * @pattern ^\d{4}-\d{2}-\d{2}$
+ */
 from?: string;
+/**
+ * @pattern ^\d{4}-\d{2}-\d{2}$
+ */
 to?: string;
 };
 
@@ -796,15 +927,38 @@ status?: SubmissionStatus;
 
 export type GetReviewQueueParams = {
 search?: string;
-status?: SubmissionStatus;
+status?: GetReviewQueueStatus;
 };
+
+export type GetReviewQueueStatus = typeof GetReviewQueueStatus[keyof typeof GetReviewQueueStatus];
+
+
+export const GetReviewQueueStatus = {
+  submitted: 'submitted',
+  under_review: 'under_review',
+} as const;
 
 export type GetReviewHistoryParams = {
 search?: string;
-status?: SubmissionStatus;
+status?: GetReviewHistoryStatus;
+/**
+ * @pattern ^\d{4}-\d{2}-\d{2}$
+ */
 from?: string;
+/**
+ * @pattern ^\d{4}-\d{2}-\d{2}$
+ */
 to?: string;
 };
+
+export type GetReviewHistoryStatus = typeof GetReviewHistoryStatus[keyof typeof GetReviewHistoryStatus];
+
+
+export const GetReviewHistoryStatus = {
+  approved: 'approved',
+  rejected: 'rejected',
+  needs_correction: 'needs_correction',
+} as const;
 
 export type GetRegionalScorecardsParams = {
 search?: string;
@@ -820,8 +974,19 @@ months?: number;
 
 export type ExportRegionalDataParams = {
 dataset: ExportRegionalDataDataset;
+/**
+ * @pattern ^\d{4}-\d{2}-\d{2}$
+ */
 from?: string;
+/**
+ * @pattern ^\d{4}-\d{2}-\d{2}$
+ */
 to?: string;
+/**
+ * @minimum 3
+ * @maximum 24
+ */
+months?: number;
 };
 
 export type ExportRegionalDataDataset = typeof ExportRegionalDataDataset[keyof typeof ExportRegionalDataDataset];

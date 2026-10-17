@@ -2871,6 +2871,7 @@ export const getGetSubmissionsUrl = (params?: GetSubmissionsParams,) => {
 }
 
 /**
+ * Drafts are visible only to their shopper and administrators; other roles see reports after submission.
  * @summary List reports visible to the current role
  */
 export const getSubmissions = async (params?: GetSubmissionsParams, options?: Parameters<typeof customFetch>[1]): Promise<SubmissionSummary[]> => {
@@ -3120,6 +3121,7 @@ export const getGetSubmissionUrl = (submissionId: number,) => {
 }
 
 /**
+ * Draft reports are private to the assigned shopper and administrators. Other access is limited by region and role.
  * @summary Report detail with answers and evidence
  */
 export const getSubmission = async (submissionId: number, options?: Parameters<typeof customFetch>[1]): Promise<SubmissionDetail> => {
