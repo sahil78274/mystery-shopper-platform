@@ -9,6 +9,7 @@ import { LoginPage, RegisterPage } from '@/pages/auth';
 import NotFound from '@/pages/not-found';
 import { AppQueryProvider, AuthProvider, useAuth } from '@/lib/auth';
 import { PreferencesProvider } from '@/lib/format';
+import LandingPage from '@/pages/landing';
 
 function Splash({ label }: { label: string }) {
   return (
@@ -28,7 +29,10 @@ function RequireAuth({ children }: { children: ReactNode }) {
 
   if (loading) return <Splash label="Restoring your session…" />;
   if (!user) {
-    const redirect = location && location !== '/' ? `?next=${encodeURIComponent(location)}` : '';
+    const redirect =
+      location && location !== '/'
+        ? `?next=${encodeURIComponent(location)}`
+        : '';
     return <Redirect to={`/login${redirect}`} />;
   }
   return <>{children}</>;
@@ -47,8 +51,14 @@ function RoutedErrorBoundary({ children }: { children: ReactNode }) {
   return <ErrorBoundary resetKey={location}>{children}</ErrorBoundary>;
 }
 
+/** Keeps the existing role-specific workspace home at / while showing public content to visitors. */
+function RootPage() {
+  const { user, loading } = useAuth();
+  if (loading) return <Splash label="Restoring your session…" />;
+  return user ? <Workspace /> : <LandingPage />;
+}
+
 const workspaceRoutes = [
-  '/',
   '/stores',
   '/stores/:id',
   '/shoppers',
@@ -83,6 +93,9 @@ function App() {
           <TooltipProvider>
             <RoutedErrorBoundary>
               <Switch>
+                <Route path="/">
+                  <RootPage />
+                </Route>
                 <Route path="/login">
                   <RedirectIfSignedIn>
                     <LoginPage />

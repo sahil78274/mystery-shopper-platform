@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useLocation, useSearch } from 'wouter';
-import { CircleAlert, LogIn, ShieldCheck, Store as StoreIcon, UserPlus } from 'lucide-react';
+import { CircleAlert, LogIn, ShieldCheck, UserPlus } from 'lucide-react';
+import { RicozBrand } from '@/components/brand';
 import { useAuth } from '@/lib/auth';
 import { messageOf } from '@/components/common';
 
@@ -19,15 +20,7 @@ function AuthShell({
     <div className="auth-screen">
       <div className="auth-card">
         <aside className="auth-aside">
-          <div className="brand auth-brand">
-            <div className="brand-mark">
-              <StoreIcon size={19} />
-            </div>
-            <div>
-              <div className="brand-name">Fieldnote</div>
-              <div className="brand-sub">Quality operations</div>
-            </div>
-          </div>
+          <RicozBrand className="auth-brand" subtitle="Mystery shopping platform" />
           <h2>Mystery shopping, end to end.</h2>
           <p>
             Plan visits, collect field evidence, review submissions and track store performance from a single

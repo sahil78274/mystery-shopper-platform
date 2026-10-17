@@ -17,6 +17,7 @@ import {
 } from '@workspace/api-client-react';
 import type { AuthUser, LoginInput, RegisterShopperInput } from '@workspace/api-client-react';
 
+// Keep the original key so existing sessions survive the Ricoz branding update.
 const TOKEN_STORAGE_KEY = 'fieldnote.session-token';
 
 type AuthContextValue = {

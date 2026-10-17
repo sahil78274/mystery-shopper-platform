@@ -34,9 +34,22 @@ import { PageHeading, StateBlock, Status, Toast, messageOf, useNotify } from '@/
 import { formatDate, formatDateTime, formatMonthLabel, formatScore, formatTrend } from '@/lib/format';
 import { useAuth } from '@/lib/auth';
 
-const CHART_BLUE = '#2f67b2';
+const CHART_PRIMARY = '#B91F26';
 const CHART_GREEN = '#3f8a6d';
 const CHART_AMBER = '#c08a2e';
+const CHART_LOW = '#a44e46';
+const chartTooltipStyle = {
+  contentStyle: {
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #E5E7EB',
+    borderRadius: 8,
+    color: '#171D2B',
+    boxShadow: '0 8px 24px rgba(23, 29, 43, .12)',
+    fontSize: 11,
+  },
+  labelStyle: { color: '#171D2B', fontWeight: 700 },
+  itemStyle: { color: '#4B5563' },
+};
 
 function downloadCsv(csv: string, fileName: string) {
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
@@ -199,22 +212,23 @@ function RegionalDashboard() {
                 <div className="chart-box">
                   <ResponsiveContainer width="100%" height={260}>
                     <LineChart data={trendData} margin={{ top: 12, right: 18, bottom: 4, left: -12 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#eef1f4" vertical={false} />
-                      <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#8b9495' }} stroke="#dfe4e7" />
+                      <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
+                      <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#6E727B' }} stroke="#E5E7EB" />
                       <YAxis
                         domain={[0, 100]}
-                        tick={{ fontSize: 11, fill: '#8b9495' }}
-                        stroke="#dfe4e7"
+                        tick={{ fontSize: 11, fill: '#6E727B' }}
+                        stroke="#E5E7EB"
                         tickFormatter={(value: number) => `${value}`}
                       />
                       <Tooltip
+                        {...chartTooltipStyle}
                         formatter={(value: number | string) => [`${value ?? 0}%`, 'Average score']}
                         labelFormatter={(label: string) => `Month: ${label}`}
                       />
                       <Line
                         type="monotone"
                         dataKey="averageScore"
-                        stroke={CHART_BLUE}
+                        stroke={CHART_PRIMARY}
                         strokeWidth={2.4}
                         dot={{ r: 3 }}
                         connectNulls
@@ -473,26 +487,26 @@ function ComparisonPage() {
               <div className="chart-box">
                 <ResponsiveContainer width="100%" height={Math.max(260, chartData.length * 42)}>
                   <BarChart data={chartData} layout="vertical" margin={{ top: 8, right: 24, bottom: 8, left: 12 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#eef1f4" horizontal={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" horizontal={false} />
                     <XAxis
                       type="number"
                       domain={[0, 100]}
-                      tick={{ fontSize: 11, fill: '#8b9495' }}
-                      stroke="#dfe4e7"
+                      tick={{ fontSize: 11, fill: '#6E727B' }}
+                      stroke="#E5E7EB"
                     />
                     <YAxis
                       type="category"
                       dataKey="name"
                       width={150}
-                      tick={{ fontSize: 11, fill: '#5c6868' }}
-                      stroke="#dfe4e7"
+                      tick={{ fontSize: 11, fill: '#4B5563' }}
+                      stroke="#E5E7EB"
                     />
-                    <Tooltip formatter={(value: number | string) => [`${value}%`, 'Average score']} />
+                    <Tooltip {...chartTooltipStyle} formatter={(value: number | string) => [`${value}%`, 'Average score']} />
                     <Bar dataKey="score" radius={[0, 5, 5, 0]} barSize={18}>
                       {chartData.map((entry) => (
                         <Cell
                           key={entry.name}
-                          fill={entry.score >= 80 ? CHART_GREEN : entry.score >= 60 ? CHART_BLUE : CHART_AMBER}
+                          fill={entry.score >= 80 ? CHART_GREEN : entry.score >= 60 ? CHART_AMBER : CHART_LOW}
                         />
                       ))}
                     </Bar>
@@ -578,10 +592,11 @@ function TrendsPage() {
             <div className="chart-box">
               <ResponsiveContainer width="100%" height={320}>
                 <LineChart data={data} margin={{ top: 16, right: 24, bottom: 4, left: -8 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#eef1f4" vertical={false} />
-                  <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#8b9495' }} stroke="#dfe4e7" />
-                  <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: '#8b9495' }} stroke="#dfe4e7" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
+                  <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#6E727B' }} stroke="#E5E7EB" />
+                  <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: '#6E727B' }} stroke="#E5E7EB" />
                   <Tooltip
+                    {...chartTooltipStyle}
                     formatter={(value: number | string, name: string) => [
                       name === 'averageScore' ? `${value ?? 0}%` : value ?? 0,
                       name === 'averageScore' ? 'Average score' : 'Approved reports',
@@ -590,7 +605,7 @@ function TrendsPage() {
                   <Line
                     type="monotone"
                     dataKey="averageScore"
-                    stroke={CHART_BLUE}
+                    stroke={CHART_PRIMARY}
                     strokeWidth={2.6}
                     dot={{ r: 3 }}
                     connectNulls
