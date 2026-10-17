@@ -1,3 +1,5 @@
+// Load a package-local .env for local development before application modules read configuration.
+import "dotenv/config";
 import app from "./app";
 import { logger } from "./lib/logger";
 

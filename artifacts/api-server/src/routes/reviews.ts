@@ -23,6 +23,8 @@ import { requireRoleOrAdmin, type AuthUser } from "../lib/auth";
 import { validDateRange } from "../lib/validation";
 import { canTransitionReview, isReviewStatusAllowed, REVIEW_DECISION_STATUSES, REVIEWABLE_SUBMISSION_STATUSES } from "../lib/workflow";
 import { recordActivity, roundScore } from "../lib/platform";
+import { sendReportReviewNotice } from "../lib/email-notifications";
+import { shouldNotifyReviewDecision } from "../lib/email-workflows";
 import {
   countEvidence,
   loadSubmissionDetail,
@@ -227,7 +229,10 @@ router.post("/reviews/:submissionId", requireRoleOrAdmin("reviewer"), async (req
         reviewedAt: decided ? now : null,
       })
       .where(eq(tasksTable.id, task.id));
-    return { ok: true as const };
+    return {
+      ok: true as const,
+      notify: shouldNotifyReviewDecision(current.status, parsed.data.status),
+    };
   });
   if (!result.ok) {
     res.status(result.status).json({ error: result.message });
@@ -243,6 +248,25 @@ router.post("/reviews/:submissionId", requireRoleOrAdmin("reviewer"), async (req
   );
 
   const detail = await loadSubmissionDetail(row.submission.id, user);
+  if (
+    result.notify &&
+    (parsed.data.status === "approved" || parsed.data.status === "rejected" || parsed.data.status === "needs_correction")
+  ) {
+    const [shopper] = await db
+      .select({ fullName: shoppersTable.fullName, email: shoppersTable.email })
+      .from(shoppersTable)
+      .where(eq(shoppersTable.id, row.submission.shopperId));
+    if (shopper) {
+      await sendReportReviewNotice({
+        email: shopper.email,
+        name: shopper.fullName,
+        storeName: row.storeName,
+        submissionId: row.submission.id,
+        status: parsed.data.status,
+        comment,
+      });
+    }
+  }
   res.json(DecideReviewResponse.parse(detail));
 });
 

@@ -40,6 +40,7 @@ type AuthContextValue = {
   login: (body: LoginInput) => Promise<AuthUser>;
   register: (body: RegisterShopperInput) => Promise<AuthUser>;
   logout: () => Promise<void>;
+  clearSession: () => void;
   refresh: () => Promise<void>;
   setUser: (user: AuthUser | null) => void;
 };
@@ -80,7 +81,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setSessionError(null);
     writeToken(null);
-  }, []);
+    queryClient.clear();
+  }, [queryClient]);
 
   const refresh = useCallback(async () => {
     if (!token) {
@@ -171,8 +173,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [clearSession, queryClient]);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ user, token, loading, sessionError, login, register, logout, refresh, setUser }),
-    [user, token, loading, sessionError, login, register, logout, refresh],
+    () => ({ user, token, loading, sessionError, login, register, logout, clearSession, refresh, setUser }),
+    [user, token, loading, sessionError, login, register, logout, clearSession, refresh],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

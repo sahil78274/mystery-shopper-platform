@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { Link } from 'wouter';
+import { submitContactForm } from '@workspace/api-client-react';
+import { messageOf } from '@/components/common';
 import {
   Activity,
   ArrowRight,
@@ -329,6 +331,33 @@ function LandingNavigation() {
 }
 
 export default function LandingPage() {
+  const [contactBusy, setContactBusy] = useState(false);
+  const [contactError, setContactError] = useState('');
+  const [contactSent, setContactSent] = useState(false);
+
+  const submitContact = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setContactError('');
+    setContactSent(false);
+    setContactBusy(true);
+    const form = event.currentTarget;
+    const values = new FormData(form);
+    try {
+      await submitContactForm({
+        name: String(values.get('name') ?? '').trim(),
+        email: String(values.get('email') ?? '').trim(),
+        subject: String(values.get('subject') ?? '').trim(),
+        message: String(values.get('message') ?? '').trim(),
+      });
+      form.reset();
+      setContactSent(true);
+    } catch (reason) {
+      setContactError(messageOf(reason));
+    } finally {
+      setContactBusy(false);
+    }
+  };
+
   return (
     <div className="landing-page">
       <LandingNavigation />
@@ -553,6 +582,38 @@ export default function LandingPage() {
                   Get Started <ArrowRight size={16} />
                 </Link>
               </div>
+            </div>
+            <div className="contact-form-panel">
+              <div className="contact-form-heading">
+                <h3>Talk to the Ricoz team</h3>
+                <p>Send us a question and we’ll get back to you by email.</p>
+              </div>
+              <form className="contact-form" onSubmit={submitContact}>
+                <label className="contact-field">
+                  <span>Name *</span>
+                  <input name="name" required minLength={2} maxLength={120} autoComplete="name" />
+                </label>
+                <label className="contact-field">
+                  <span>Email address *</span>
+                  <input name="email" type="email" required maxLength={254} autoComplete="email" />
+                </label>
+                <label className="contact-field contact-field-wide">
+                  <span>Subject *</span>
+                  <input name="subject" required minLength={3} maxLength={160} />
+                </label>
+                <label className="contact-field contact-field-wide">
+                  <span>Message *</span>
+                  <textarea name="message" required minLength={10} maxLength={4000} rows={5} />
+                </label>
+                {contactError && <p className="contact-feedback is-error" role="alert">{contactError}</p>}
+                {contactSent && <p className="contact-feedback is-success" role="status">Your enquiry was sent. Thank you for reaching out.</p>}
+                <div className="contact-submit-row">
+                  <span>We’ll reply to the email address you provide.</span>
+                  <button className="landing-button landing-button-primary" type="submit" disabled={contactBusy}>
+                    {contactBusy ? 'Sending…' : 'Send enquiry'} <ArrowRight size={15} />
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         </section>

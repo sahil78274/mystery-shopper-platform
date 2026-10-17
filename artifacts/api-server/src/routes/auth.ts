@@ -1,9 +1,14 @@
-import { eq, sql } from "drizzle-orm";
+import { createHash } from "node:crypto";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { Router, type IRouter } from "express";
 import {
   ChangePasswordBody,
   ChangePasswordResponse,
+  ForgotPasswordBody,
+  ForgotPasswordResponse,
   GetAuthSessionResponse,
+  ResetPasswordBody,
+  ResetPasswordResponse,
   LoginBody,
   LoginResponse,
   LogoutResponse,
@@ -12,10 +17,11 @@ import {
   UpdateAuthProfileBody,
   UpdateAuthProfileResponse,
 } from "@workspace/api-zod";
-import { db, shoppersTable, usersTable } from "@workspace/db";
+import { activityLogsTable, db, passwordResetTokensTable, sessionsTable, shoppersTable, usersTable } from "@workspace/db";
 import {
   createSession,
   emailTaken,
+  findUserByEmail,
   hashPassword,
   isUserRole,
   normalizeEmail,
@@ -29,14 +35,29 @@ import {
   type AuthUser,
 } from "../lib/auth";
 import { normalizeTextFields } from "../lib/validation";
-import { rateLimitByIp } from "../lib/rate-limit";
+import { FixedWindowLimiter, rateLimitByIp } from "../lib/rate-limit";
 import { isUniqueViolation, iso, recordActivity } from "../lib/platform";
 import { logger } from "../lib/logger";
+import {
+  sendPasswordChangedNotice,
+  sendPasswordResetNotice,
+  sendRegistrationNotice,
+} from "../lib/email-notifications";
+import {
+  createPasswordResetToken,
+  hashPasswordResetToken,
+  isPasswordResetTokenUsable,
+} from "../lib/password-reset";
 
 const router: IRouter = Router();
 const loginRateLimit = rateLimitByIp(10, 15 * 60 * 1000, "Too many sign-in attempts. Try again in 15 minutes.");
 const registrationRateLimit = rateLimitByIp(5, 60 * 60 * 1000, "Too many registration attempts. Try again later.");
 const passwordRateLimit = rateLimitByIp(10, 15 * 60 * 1000, "Too many password-change attempts. Try again later.");
+const forgotPasswordRateLimit = rateLimitByIp(5, 60 * 60 * 1000, "Too many password reset requests. Try again later.");
+const resetPasswordRateLimit = rateLimitByIp(10, 15 * 60 * 1000, "Too many password reset attempts. Try again later.");
+const forgotPasswordEmailLimiter = new FixedWindowLimiter(3, 60 * 60 * 1000);
+
+const FORGOT_PASSWORD_MESSAGE = "If an account with that email exists, a password reset link will be sent.";
 
 // Placeholder hash compared against when an email does not exist so that a
 // missing account and a wrong password take a comparable amount of time.
@@ -139,6 +160,7 @@ router.post("/auth/register", registrationRateLimit, async (req, res): Promise<v
       res.status(500).json({ error: "Account could not be loaded after registration." });
       return;
     }
+    await sendRegistrationNotice(created.user.email, created.user.fullName);
     res.status(201).json(
       RegisterShopperResponse.parse({
         token: session.token,
@@ -153,6 +175,108 @@ router.post("/auth/register", registrationRateLimit, async (req, res): Promise<v
     }
     throw error;
   }
+});
+
+router.post("/auth/forgot-password", forgotPasswordRateLimit, async (req, res): Promise<void> => {
+  const parsed = ForgotPasswordBody.safeParse(normalizeTextFields(req.body, ["email"]));
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  const normalizedEmail = normalizeEmail(parsed.data.email);
+  const emailKey = createHash("sha256").update(normalizedEmail).digest("hex");
+  if (forgotPasswordEmailLimiter.consume(emailKey).allowed) {
+    const user = await findUserByEmail(normalizedEmail);
+    if (user) {
+      const issued = createPasswordResetToken();
+      const recipient = await db.transaction(async (tx) => {
+        const [lockedUser] = await tx
+          .select()
+          .from(usersTable)
+          .where(eq(usersTable.id, user.id))
+          .for("update");
+        if (!lockedUser || lockedUser.accountStatus !== "active" || !lockedUser.passwordHash) return null;
+
+        // A fresh request replaces any older active link. Locking the account
+        // row serializes simultaneous requests for this email address.
+        await tx.delete(passwordResetTokensTable).where(eq(passwordResetTokensTable.userId, lockedUser.id));
+        await tx.insert(passwordResetTokensTable).values({
+          userId: lockedUser.id,
+          tokenHash: issued.tokenHash,
+          expiresAt: issued.expiresAt,
+        });
+        return { email: lockedUser.email, fullName: lockedUser.fullName };
+      });
+      if (recipient) {
+        await sendPasswordResetNotice(recipient.email, recipient.fullName, issued.token);
+      }
+    }
+  }
+
+  // The status and response body are deliberately identical for known and
+  // unknown accounts, including when email delivery is unavailable or limited.
+  res.status(202).json(ForgotPasswordResponse.parse({ message: FORGOT_PASSWORD_MESSAGE }));
+});
+
+router.post("/auth/reset-password", resetPasswordRateLimit, async (req, res): Promise<void> => {
+  const parsed = ResetPasswordBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  const tokenHash = hashPasswordResetToken(parsed.data.token);
+  const account = await db.transaction(async (tx) => {
+    const [candidate] = await tx
+      .select()
+      .from(passwordResetTokensTable)
+      .where(eq(passwordResetTokensTable.tokenHash, tokenHash))
+      .limit(1);
+    if (!candidate || !isPasswordResetTokenUsable(candidate)) return null;
+
+    // Use the user row as the serialization point for concurrent reset links
+    // and reset-request creation; then re-read the token after acquiring it.
+    const [user] = await tx
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.id, candidate.userId))
+      .for("update");
+    if (!user || user.accountStatus !== "active" || !user.passwordHash) return null;
+
+    const [lockedToken] = await tx
+      .select()
+      .from(passwordResetTokensTable)
+      .where(eq(passwordResetTokensTable.tokenHash, tokenHash))
+      .for("update");
+    if (!lockedToken || !isPasswordResetTokenUsable(lockedToken)) return null;
+
+    const usedAt = new Date();
+    await tx
+      .update(usersTable)
+      .set({ passwordHash: await hashPassword(parsed.data.newPassword) })
+      .where(eq(usersTable.id, user.id));
+    await tx.delete(sessionsTable).where(eq(sessionsTable.userId, user.id));
+    await tx
+      .update(passwordResetTokensTable)
+      .set({ usedAt })
+      .where(and(eq(passwordResetTokensTable.userId, user.id), isNull(passwordResetTokensTable.usedAt)));
+    await tx.insert(activityLogsTable).values({
+      action: "updated",
+      entityType: "user",
+      entityId: user.id,
+      description: "Reset account password",
+      actorUserId: user.id,
+    });
+    return { email: user.email, fullName: user.fullName };
+  });
+
+  if (!account) {
+    res.status(400).json({ error: "This password reset link is invalid or has expired." });
+    return;
+  }
+  await sendPasswordChangedNotice(account.email, account.fullName);
+  res.json(ResetPasswordResponse.parse({ message: "Your password has been reset. Sign in with your new password." }));
 });
 
 router.post("/auth/login", loginRateLimit, async (req, res): Promise<void> => {
@@ -318,6 +442,7 @@ router.post("/auth/password", requireAuth, passwordRateLimit, async (req, res): 
   // Sign out every other device; the current session stays valid.
   await revokeOtherSessions(user.id, req.authToken);
   await recordActivity("updated", "user", user.id, "Changed account password", user.id);
+  await sendPasswordChangedNotice(row.email, row.fullName);
   res.json(
     ChangePasswordResponse.parse({
       message: "Password updated. Other sessions were signed out.",

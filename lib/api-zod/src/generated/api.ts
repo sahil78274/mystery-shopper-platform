@@ -736,6 +736,40 @@ export const UpdateQuestionnaireResponse = zod.object({
 
 
 /**
+ * @summary Submit a public website enquiry
+ */
+export const submitContactFormBodyNameMin = 2;
+export const submitContactFormBodyNameMax = 120;
+
+
+export const submitContactFormBodyNameRegExp = new RegExp('\\S');
+export const submitContactFormBodyEmailMax = 254;
+
+export const submitContactFormBodySubjectMin = 3;
+export const submitContactFormBodySubjectMax = 160;
+
+
+export const submitContactFormBodySubjectRegExp = new RegExp('\\S');
+export const submitContactFormBodyMessageMin = 10;
+export const submitContactFormBodyMessageMax = 4000;
+
+
+export const submitContactFormBodyMessageRegExp = new RegExp('\\S');
+
+
+export const SubmitContactFormBody = zod.object({
+  "name": zod.string().min(submitContactFormBodyNameMin).max(submitContactFormBodyNameMax).regex(submitContactFormBodyNameRegExp),
+  "email": zod.string().email().max(submitContactFormBodyEmailMax),
+  "subject": zod.string().min(submitContactFormBodySubjectMin).max(submitContactFormBodySubjectMax).regex(submitContactFormBodySubjectRegExp),
+  "message": zod.string().min(submitContactFormBodyMessageMin).max(submitContactFormBodyMessageMax).regex(submitContactFormBodyMessageRegExp)
+})
+
+export const SubmitContactFormResponse = zod.object({
+  "message": zod.string()
+})
+
+
+/**
  * Creates a mystery shopper login together with a pending shopper profile. Privileged roles can only be created by an administrator through /users.
  * @summary Public self-registration for mystery shoppers only
  */
@@ -779,6 +813,46 @@ export const RegisterShopperResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
+})
+
+
+/**
+ * Always returns the same response whether or not the account exists.
+ * @summary Request a password reset link
+ */
+export const forgotPasswordBodyEmailMax = 254;
+
+
+
+export const ForgotPasswordBody = zod.object({
+  "email": zod.string().email().max(forgotPasswordBodyEmailMax)
+})
+
+export const ForgotPasswordResponse = zod.object({
+  "message": zod.string()
+})
+
+
+/**
+ * @summary Set a new password using a single-use reset link
+ */
+export const resetPasswordBodyTokenMin = 32;
+export const resetPasswordBodyTokenMax = 128;
+
+export const resetPasswordBodyNewPasswordMin = 8;
+export const resetPasswordBodyNewPasswordMax = 256;
+
+
+export const resetPasswordBodyNewPasswordRegExp = new RegExp('\\S');
+
+
+export const ResetPasswordBody = zod.object({
+  "token": zod.string().min(resetPasswordBodyTokenMin).max(resetPasswordBodyTokenMax),
+  "newPassword": zod.string().min(resetPasswordBodyNewPasswordMin).max(resetPasswordBodyNewPasswordMax).regex(resetPasswordBodyNewPasswordRegExp)
+})
+
+export const ResetPasswordResponse = zod.object({
+  "message": zod.string()
 })
 
 
