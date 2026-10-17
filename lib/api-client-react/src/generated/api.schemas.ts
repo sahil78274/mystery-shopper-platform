@@ -548,6 +548,48 @@ export interface RegisterShopperInput {
   experience?: number;
 }
 
+export interface ForgotPasswordInput {
+  /** @maxLength 254 */
+  email: string;
+}
+
+export interface ResetPasswordInput {
+  /**
+     * @minLength 32
+     * @maxLength 128
+     */
+  token: string;
+  /**
+     * @minLength 8
+     * @maxLength 256
+     * @pattern \S
+     */
+  newPassword: string;
+}
+
+export interface ContactFormInput {
+  /**
+     * @minLength 2
+     * @maxLength 120
+     * @pattern \S
+     */
+  name: string;
+  /** @maxLength 254 */
+  email: string;
+  /**
+     * @minLength 3
+     * @maxLength 160
+     * @pattern \S
+     */
+  subject: string;
+  /**
+     * @minLength 10
+     * @maxLength 4000
+     * @pattern \S
+     */
+  message: string;
+}
+
 export interface LoginInput {
   email: string;
   /** @minLength 1 */

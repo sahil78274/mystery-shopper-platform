@@ -24,6 +24,8 @@ import { normalizeEmail, requireAuth, requireRole, shopperEmailTaken } from "../
 import { canAccessShopperDirectory, canAccessShopperProfile } from "../lib/workflow";
 import { normalizeTextFields } from "../lib/validation";
 import { iso, isUniqueViolation, recordActivity } from "../lib/platform";
+import { sendShopperVerificationNotice } from "../lib/email-notifications";
+import { shouldNotifyShopperDecision } from "../lib/email-workflows";
 
 const router: IRouter = Router();
 
@@ -211,19 +213,22 @@ router.post(
       });
       return;
     }
-    const [existing] = await db
-      .select()
-      .from(shoppersTable)
-      .where(eq(shoppersTable.id, params.data.shopperId));
-    if (!existing) {
-      res.status(404).json({ error: "Shopper not found." });
-      return;
-    }
     const reason =
       parsed.data.verificationStatus === "rejected"
         ? parsed.data.reason?.trim() || null
         : null;
-    const [row] = await db.transaction(async (tx) => {
+    const result = await db.transaction(async (tx) => {
+      const [existing] = await tx
+        .select()
+        .from(shoppersTable)
+        .where(eq(shoppersTable.id, params.data.shopperId))
+        .for("update");
+      if (!existing) return null;
+
+      const changed = shouldNotifyShopperDecision(
+        existing.verificationStatus,
+        parsed.data.verificationStatus,
+      );
       const [updated] = await tx
         .update(shoppersTable)
         .set({
@@ -245,10 +250,22 @@ router.post(
         description: `${parsed.data.verificationStatus === "verified" ? "Verified" : "Rejected"} shopper ${existing.fullName}`,
         actorUserId: req.authUser!.id,
       });
-      return [updated];
+      return { row: updated, notify: changed };
     });
+    if (!result) {
+      res.status(404).json({ error: "Shopper not found." });
+      return;
+    }
+    if (result.notify && (parsed.data.verificationStatus === "verified" || parsed.data.verificationStatus === "rejected")) {
+      await sendShopperVerificationNotice({
+        email: result.row.email,
+        name: result.row.fullName,
+        status: parsed.data.verificationStatus,
+        reason,
+      });
+    }
     res.json(
-      DecideShopperVerificationResponse.parse(toShopper(row)),
+      DecideShopperVerificationResponse.parse(toShopper(result.row)),
     );
   },
 );

@@ -27,6 +27,8 @@ import {
   canReassignTask,
 } from "../lib/workflow";
 import { iso, recordActivity } from "../lib/platform";
+import { sendTaskAssignmentNotice } from "../lib/email-notifications";
+import { shouldNotifyTaskAssignment } from "../lib/email-workflows";
 
 const router: IRouter = Router();
 
@@ -75,6 +77,28 @@ async function getTaskRow(taskId: number) {
     )
     .where(eq(tasksTable.id, taskId));
   return row ? toTask(row) : null;
+}
+
+async function sendAssignmentEmail(task: {
+  shopperId: number | null;
+  status: string;
+  storeName: string;
+  visitDate: string | Date;
+  dueDate: string | Date;
+}): Promise<void> {
+  if (!task.shopperId || task.status !== "assigned") return;
+  const [shopper] = await db
+    .select({ fullName: shoppersTable.fullName, email: shoppersTable.email })
+    .from(shoppersTable)
+    .where(eq(shoppersTable.id, task.shopperId));
+  if (!shopper) return;
+  await sendTaskAssignmentNotice({
+    email: shopper.email,
+    name: shopper.fullName,
+    storeName: task.storeName,
+    visitDate: toCalendarDate(task.visitDate),
+    dueDate: toCalendarDate(task.dueDate),
+  });
 }
 
 async function isEligibleShopper(shopperId: number): Promise<boolean> {
@@ -227,6 +251,14 @@ router.post("/tasks", requireRole("admin"), async (req, res): Promise<void> => {
     `Created task for ${result?.storeName ?? "store"}`,
     req.authUser!.id,
   );
+  if (shouldNotifyTaskAssignment({
+    previousShopperId: null,
+    nextShopperId: task.shopperId ?? null,
+    previousStatus: "draft",
+    nextStatus: task.status,
+  }) && result) {
+    await sendAssignmentEmail(result);
+  }
   res.status(201).json(CreateTaskResponse.parse(result));
 });
 
@@ -390,7 +422,16 @@ router.patch("/tasks/:taskId", requireRole("admin"), async (req, res): Promise<v
       })
       .where(eq(tasksTable.id, current.id))
       .returning();
-    return { ok: true as const, taskId: updated.id };
+    return {
+      ok: true as const,
+      taskId: updated.id,
+      notifyAssignment: shouldNotifyTaskAssignment({
+        previousShopperId: current.shopperId ?? null,
+        nextShopperId: updated.shopperId ?? null,
+        previousStatus: current.status,
+        nextStatus: updated.status,
+      }),
+    };
   });
 
   if (!result.ok) {
@@ -405,6 +446,7 @@ router.patch("/tasks/:taskId", requireRole("admin"), async (req, res): Promise<v
     `Updated task #${result.taskId}`,
     req.authUser!.id,
   );
+  if (result.notifyAssignment && updated) await sendAssignmentEmail(updated);
   res.json(UpdateTaskResponse.parse(updated));
 });
 

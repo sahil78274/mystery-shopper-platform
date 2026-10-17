@@ -5,7 +5,7 @@ import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Workspace } from '@/components/workspace';
-import { LoginPage, RegisterPage } from '@/pages/auth';
+import { ForgotPasswordPage, LoginPage, RegisterPage, ResetPasswordPage } from '@/pages/auth';
 import NotFound from '@/pages/not-found';
 import { AppQueryProvider, AuthProvider, useAuth } from '@/lib/auth';
 import { PreferencesProvider } from '@/lib/format';
@@ -117,6 +117,12 @@ function App() {
                   <RedirectIfSignedIn>
                     <LoginPage />
                   </RedirectIfSignedIn>
+                </Route>
+                <Route path="/forgot-password">
+                  <ForgotPasswordPage />
+                </Route>
+                <Route path="/reset-password">
+                  <ResetPasswordPage />
                 </Route>
                 <Route path="/register">
                   <RedirectIfSignedIn>

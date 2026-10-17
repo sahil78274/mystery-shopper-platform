@@ -20,6 +20,7 @@
 export * from "./activity-logs";
 export * from "./browser-preferences";
 export * from "./organization-settings";
+export * from "./password-reset-tokens";
 export * from "./questionnaire-questions";
 export * from "./questionnaires";
 export * from "./sessions";

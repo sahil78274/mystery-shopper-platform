@@ -1,6 +1,7 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useLocation, useSearch } from 'wouter';
-import { CircleAlert, LogIn, ShieldCheck, UserPlus } from 'lucide-react';
+import { CheckCircle2, CircleAlert, KeyRound, LogIn, Mail, ShieldCheck, UserPlus } from 'lucide-react';
+import { forgotPassword, resetPassword } from '@workspace/api-client-react';
 import { RicozBrand } from '@/components/brand';
 import { useAuth } from '@/lib/auth';
 import { messageOf } from '@/components/common';
@@ -99,6 +100,9 @@ export function LoginPage() {
             required
           />
         </label>
+        <p className="auth-note">
+          <Link href="/forgot-password">Forgot your password?</Link>
+        </p>
         {error && (
           <p className="field-error" role="alert">
             <CircleAlert size={13} /> {error}
@@ -109,6 +113,151 @@ export function LoginPage() {
           {busy ? 'Signing in…' : 'Sign in'}
         </button>
       </form>
+    </AuthShell>
+  );
+}
+
+export function ForgotPasswordPage() {
+  const [busy, setBusy] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState('');
+
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError('');
+    setBusy(true);
+    const values = new FormData(event.currentTarget);
+    try {
+      await forgotPassword({ email: String(values.get('email') ?? '').trim() });
+      setSent(true);
+    } catch (reason) {
+      setError(messageOf(reason));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <AuthShell
+      title="Forgot your password?"
+      subtitle="Enter your account email and we’ll send a reset link if an account matches."
+      footer={
+        <>
+          Remembered it? <Link href="/login">Back to sign in</Link>
+        </>
+      }
+    >
+      {sent ? (
+        <div className="auth-form" role="status">
+          <p className="auth-note">
+            If an account with that email exists, a password reset link has been sent. Check your inbox and spam folder.
+          </p>
+          <Link href="/login">Return to sign in</Link>
+        </div>
+      ) : (
+        <form onSubmit={submit} className="auth-form">
+          <label className="form-field">
+            <span className="form-label">Email address *</span>
+            <input className="field" name="email" type="email" required maxLength={254} autoComplete="email" autoFocus />
+          </label>
+          {error && (
+            <p className="field-error" role="alert">
+              <CircleAlert size={13} /> {error}
+            </p>
+          )}
+          <button className="btn btn-primary auth-submit" type="submit" disabled={busy}>
+            <Mail size={15} />
+            {busy ? 'Sending request…' : 'Send reset link'}
+          </button>
+        </form>
+      )}
+    </AuthShell>
+  );
+}
+
+export function ResetPasswordPage() {
+  const [token] = useState(() => new URLSearchParams(window.location.hash.slice(1)).get('token') ?? '');
+  const { clearSession } = useAuth();
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (token && window.location.hash) {
+      // Keep the reset secret out of the address bar/history after capturing it.
+      window.history.replaceState(window.history.state, document.title, `${window.location.pathname}${window.location.search}`);
+    }
+  }, [token]);
+
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError('');
+    if (!token) {
+      setError('This reset link is missing or invalid. Request a new one.');
+      return;
+    }
+    const values = new FormData(event.currentTarget);
+    const newPassword = String(values.get('newPassword') ?? '');
+    const confirmPassword = String(values.get('confirmPassword') ?? '');
+    if (newPassword !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+    if (!newPassword.trim()) {
+      setError('Choose a password with at least one non-space character.');
+      return;
+    }
+    setBusy(true);
+    try {
+      await resetPassword({ token, newPassword });
+      clearSession();
+      setDone(true);
+    } catch (reason) {
+      setError(messageOf(reason));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <AuthShell
+      title={done ? 'Password reset complete' : 'Choose a new password'}
+      subtitle={done ? 'Your password has been updated and other sessions have been signed out.' : 'Use a new password with at least 8 characters.'}
+      footer={
+        done ? <Link href="/login">Sign in with your new password</Link> : <>Need another link? <Link href="/forgot-password">Request a reset</Link></>
+      }
+    >
+      {done ? (
+        <div className="auth-form" role="status">
+          <p className="auth-note"><CheckCircle2 size={15} /> Your Ricoz account is ready to sign in again.</p>
+        </div>
+      ) : (
+        <form onSubmit={submit} className="auth-form">
+          {!token && (
+            <p className="field-error" role="alert">
+              <CircleAlert size={13} /> This reset link is missing or invalid. Request a new one.
+            </p>
+          )}
+          <label className="form-field">
+            <span className="form-label">New password *</span>
+            <input className="field" name="newPassword" type="password" minLength={8} maxLength={256} required autoComplete="new-password" autoFocus />
+            <span className="form-hint">At least 8 characters.</span>
+          </label>
+          <label className="form-field">
+            <span className="form-label">Confirm new password *</span>
+            <input className="field" name="confirmPassword" type="password" minLength={8} maxLength={256} required autoComplete="new-password" />
+          </label>
+          {error && (
+            <p className="field-error" role="alert">
+              <CircleAlert size={13} /> {error}
+            </p>
+          )}
+          <button className="btn btn-primary auth-submit" type="submit" disabled={busy || !token}>
+            <KeyRound size={15} />
+            {busy ? 'Updating password…' : 'Reset password'}
+          </button>
+        </form>
+      )}
     </AuthShell>
   );
 }

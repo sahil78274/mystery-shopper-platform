@@ -24,6 +24,8 @@ tags:
     description: Browser-scoped display preferences
   - name: auth
     description: Sessions, registration and account security
+  - name: contact
+    description: Public website enquiries
   - name: users
     description: Administrator-managed accounts and role assignment
   - name: submissions
@@ -410,6 +412,26 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Questionnaire" }
         "404": { description: Questionnaire not found }
+  /contact:
+    post:
+      operationId: submitContactForm
+      tags: [contact]
+      security: []
+      summary: Submit a public website enquiry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ContactFormInput" }
+      responses:
+        "202":
+          description: Enquiry accepted for delivery
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageResponse" }
+        "400": { description: Invalid enquiry details }
+        "429": { description: Too many enquiries from this address }
+        "503": { description: The email service could not deliver the enquiry }
   /auth/register:
     post:
       operationId: registerShopper
@@ -432,6 +454,45 @@ paths:
               schema: { $ref: "#/components/schemas/AuthSession" }
         "400": { description: Invalid registration details }
         "409": { description: Email already registered }
+  /auth/forgot-password:
+    post:
+      operationId: forgotPassword
+      tags: [auth]
+      security: []
+      summary: Request a password reset link
+      description: Always returns the same response whether or not the account exists.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ForgotPasswordInput" }
+      responses:
+        "202":
+          description: Generic account-independent acknowledgement
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageResponse" }
+        "400": { description: Invalid email address }
+        "429": { description: Too many reset requests from this address }
+  /auth/reset-password:
+    post:
+      operationId: resetPassword
+      tags: [auth]
+      security: []
+      summary: Set a new password using a single-use reset link
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ResetPasswordInput" }
+      responses:
+        "200":
+          description: Password reset and all existing sessions invalidated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageResponse" }
+        "400": { description: Invalid or expired token or invalid password }
+        "429": { description: Too many reset attempts from this address }
   /auth/login:
     post:
       operationId: login
@@ -1361,6 +1422,25 @@ components:
         city: { type: string, minLength: 1, pattern: '\S' }
         experience: { type: integer, minimum: 0 }
       required: [fullName, email, password, phone, city]
+    ForgotPasswordInput:
+      type: object
+      properties:
+        email: { type: string, format: email, maxLength: 254 }
+      required: [email]
+    ResetPasswordInput:
+      type: object
+      properties:
+        token: { type: string, minLength: 32, maxLength: 128 }
+        newPassword: { type: string, minLength: 8, maxLength: 256, pattern: '\S' }
+      required: [token, newPassword]
+    ContactFormInput:
+      type: object
+      properties:
+        name: { type: string, minLength: 2, maxLength: 120, pattern: '\S' }
+        email: { type: string, format: email, maxLength: 254 }
+        subject: { type: string, minLength: 3, maxLength: 160, pattern: '\S' }
+        message: { type: string, minLength: 10, maxLength: 4000, pattern: '\S' }
+      required: [name, email, subject, message]
     LoginInput:
       type: object
       properties:
