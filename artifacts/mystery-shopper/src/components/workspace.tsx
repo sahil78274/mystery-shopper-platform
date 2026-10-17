@@ -25,7 +25,6 @@ import {
   Search,
   ShieldCheck,
   SlidersHorizontal,
-  Store as StoreIcon,
   UserRound,
   UsersRound,
   X,
@@ -103,6 +102,7 @@ import {
 } from './common';
 import { formatDate, formatDateTime, usePreferences } from '@/lib/format';
 import { homeForRole, roleLabel, useAuth } from '@/lib/auth';
+import { RicozBrand } from '@/components/brand';
 import { ReportsPage } from '@/pages/reports';
 import { ShopperWorkspace } from '@/pages/shopper';
 import { ReviewerWorkspace } from '@/pages/reviewer';
@@ -188,15 +188,7 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
     <div className="app-shell">
       <div className={`mobile-overlay${mobileOpen ? ' open' : ''}`} onClick={() => setMobileOpen(false)} />
       <aside className={`sidebar${collapsed ? ' collapsed' : ''}${mobileOpen ? ' mobile-open' : ''}`}>
-        <div className="brand">
-          <div className="brand-mark">
-            <StoreIcon size={19} />
-          </div>
-          <div>
-            <div className="brand-name">Fieldnote</div>
-            <div className="brand-sub">Quality operations</div>
-          </div>
-        </div>
+        <RicozBrand subtitle="Mystery shopping platform" />
         <div className="nav-label">{roleLabel(user?.role)}</div>
         <nav className="nav-list" aria-label="Main navigation">
           {items.map(({ label, href, icon: Icon }) => {
@@ -228,7 +220,7 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'currentColor' }} />
             {health.isLoading ? 'Checking service' : health.isError ? 'Service unavailable' : 'Service operational'}
           </div>
-          Field operations
+          Mystery shopping operations
           <br />A clear view of every visit.
         </div>
       </aside>
@@ -250,7 +242,7 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
               <SlidersHorizontal size={16} />
             </button>
             <div className="crumb">
-              Workspace <span style={{ margin: '0 7px', color: '#c1c6c3' }}>/</span>
+              Workspace <span style={{ margin: '0 7px', color: 'var(--border-subtle)' }}>/</span>
               <strong>{title}</strong>
             </div>
           </div>
@@ -263,12 +255,12 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
                 aria-expanded={menuOpen}
                 onClick={() => setMenuOpen((open) => !open)}
               >
-                <div className="profile-avatar">{initialsOf(user?.fullName || 'Fieldnote')}</div>
+                <div className="profile-avatar">{initialsOf(user?.fullName || 'Ricoz')}</div>
                 <div>
                   <div className="profile-name">{user?.fullName ?? 'Signed in'}</div>
                   <div className="profile-role">{roleLabel(user?.role)}</div>
                 </div>
-                <ChevronDown size={14} color="#889397" />
+                <ChevronDown size={14} color="var(--text-secondary-contrast)" />
               </button>
               {menuOpen && (
                 <div className="profile-dropdown" role="menu">
@@ -694,7 +686,7 @@ function StoresPage() {
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
           </select>
-          <Filter size={15} color="#919b9b" />
+          <Filter size={15} color="var(--text-secondary-contrast)" />
         </div>
         {stores.isLoading ? (
           <StateBlock loading />
@@ -791,7 +783,7 @@ function StoresPage() {
           onClose={() => setDeleting(null)}
           width="440px"
         >
-          <p style={{ color: '#748084', fontSize: 12 }}>
+          <p style={{ color: 'var(--text-secondary-contrast)', fontSize: 12 }}>
             This action cannot be undone. Existing task records may be affected.
           </p>
           <div className="form-footer">
@@ -991,11 +983,11 @@ function VerificationPage() {
           display: 'flex',
           alignItems: 'center',
           gap: 11,
-          color: '#63736f',
+          color: 'var(--text-secondary-contrast)',
           fontSize: 12,
         }}
       >
-        <ShieldCheck size={18} color="#50826d" /> Pending profiles are reviewed individually. Rejections include a
+        <ShieldCheck size={18} color="var(--ricoz-red)" /> Pending profiles are reviewed individually. Rejections include a
         reason in the shopper record.
       </div>
       {feedback && (
@@ -1345,7 +1337,7 @@ function TasksPage() {
                       </Link>
                     </td>
                     <td>
-                      {task.shopperName || <span style={{ color: '#a0a8a7' }}>Unassigned</span>}
+                      {task.shopperName || <span style={{ color: 'var(--text-secondary-contrast)' }}>Unassigned</span>}
                     </td>
                     <td>{formatDate(task.visitDate)}</td>
                     <td>{formatDate(task.dueDate)}</td>
@@ -1485,7 +1477,7 @@ function QuestionnaireForm({
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 22 }}>
           <div>
             <h3 className="section-title">
-              Questions <span style={{ color: '#9ba4a2', fontWeight: 500 }}>({questions.length})</span>
+              Questions <span style={{ color: 'var(--text-secondary-contrast)', fontWeight: 500 }}>({questions.length})</span>
             </h3>
             <div className="section-kicker">Ordered as shoppers will see them</div>
           </div>
@@ -1527,7 +1519,7 @@ function QuestionnaireForm({
                 <option value="rating">Rating</option>
               </select>
               <label
-                style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#637075' }}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--text-secondary-contrast)' }}
               >
                 <input
                   type="checkbox"
@@ -2289,7 +2281,7 @@ function UsersPage() {
           onClose={() => setRemoving(null)}
           width="440px"
         >
-          <p style={{ color: '#748084', fontSize: 12 }}>
+          <p style={{ color: 'var(--text-secondary-contrast)', fontSize: 12 }}>
             Reports they created or reviewed are preserved; only the login is removed.
           </p>
           <div className="form-footer">
@@ -2762,7 +2754,7 @@ function SettingsPage() {
           <div className="settings-intro-mark">
             <SlidersHorizontal size={18} />
           </div>
-          <div className="eyebrow">Fieldnote workspace</div>
+          <div className="eyebrow">Ricoz workspace</div>
           <h2>Configuration, clearly scoped.</h2>
           <p>
             Every section below saves through the API. Organization details can only be changed by an
