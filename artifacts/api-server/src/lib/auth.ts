@@ -217,13 +217,3 @@ export async function shopperEmailTaken(email: string, exceptShopperId?: number)
     .limit(1);
   return Boolean(match && match.id !== exceptShopperId);
 }
-
-/** Used to stop the last administrator from locking themselves out. */
-export async function countActiveAdmins(excludeUserId?: number): Promise<number> {
-  const rows = await db
-    .select({ id: usersTable.id })
-    .from(usersTable)
-    .where(and(eq(usersTable.role, "admin"), eq(usersTable.accountStatus, "active")));
-  if (!excludeUserId) return rows.length;
-  return rows.filter((row) => row.id !== excludeUserId).length;
-}

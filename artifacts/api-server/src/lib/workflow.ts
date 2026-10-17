@@ -17,6 +17,19 @@ export function isReviewStatusAllowed(
   return status === undefined || allowedStatuses.includes(status);
 }
 
+export function canKeepActiveAdmin(
+  currentRole: string,
+  nextRole: string,
+  nextStatus: string,
+  otherActiveAdmins: number,
+): boolean {
+  return (
+    currentRole !== "admin" ||
+    (nextRole === "admin" && nextStatus === "active") ||
+    otherActiveAdmins > 0
+  );
+}
+
 export function canReassignTask(
   hasSubmission: boolean,
   reportShopperId: number | null,

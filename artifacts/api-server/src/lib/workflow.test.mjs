@@ -6,6 +6,7 @@ import {
   canAccessShopperDirectory,
   canAccessShopperProfile,
   canChangeTaskStore,
+  canKeepActiveAdmin,
   canReassignTask,
   canResumeSubmission,
   canTransitionReview,
@@ -13,6 +14,13 @@ import {
   hasAssignedRegion,
   isReviewStatusAllowed,
 } from './workflow.ts';
+
+test('a role or status change cannot remove the last active administrator', () => {
+  assert.equal(canKeepActiveAdmin('admin', 'reviewer', 'active', 0), false);
+  assert.equal(canKeepActiveAdmin('admin', 'admin', 'inactive', 0), false);
+  assert.equal(canKeepActiveAdmin('admin', 'reviewer', 'active', 1), true);
+  assert.equal(canKeepActiveAdmin('reviewer', 'reviewer', 'inactive', 0), true);
+});
 
 test('review transitions only allow reports that are awaiting a decision', () => {
   assert.equal(canTransitionReview('submitted', 'under_review'), true);
