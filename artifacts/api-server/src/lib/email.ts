@@ -108,9 +108,19 @@ export function createZeptoMailService(
           ...message,
           from: { name: config.fromName, address: config.fromEmail },
         });
-      } catch {
-        // Nodemailer errors may include server responses or auth context. Do not
-        // attach the original error or expose its message outside this module.
+            } catch (error) {
+        const err = error as {
+          code?: string;
+          responseCode?: number;
+          command?: string;
+        };
+
+        console.error("[SMTP diagnostic]", {
+          code: err.code ?? "UNKNOWN",
+          responseCode: err.responseCode ?? null,
+          command: err.command ?? null,
+        });
+
         throw new ZeptoMailError("delivery");
       }
     },
