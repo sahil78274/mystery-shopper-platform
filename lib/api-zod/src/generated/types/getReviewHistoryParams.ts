@@ -5,11 +5,17 @@
  * Mystery shopper management API
  * OpenAPI spec version: 0.1.0
  */
-import type { SubmissionStatus } from './submissionStatus';
+import type { GetReviewHistoryStatus } from './getReviewHistoryStatus';
 
 export type GetReviewHistoryParams = {
 search?: string;
-status?: SubmissionStatus;
-from?: Date;
-to?: Date;
+status?: GetReviewHistoryStatus;
+/**
+ * @pattern ^\d{4}-\d{2}-\d{2}$
+ */
+from?: string;
+/**
+ * @pattern ^\d{4}-\d{2}-\d{2}$
+ */
+to?: string;
 };

@@ -22,12 +22,27 @@ function Splash({ label }: { label: string }) {
   );
 }
 
+function SessionRestoreError({ message, retry }: { message: string; retry: () => Promise<void> }) {
+  return (
+    <div className="auth-screen">
+      <div className="auth-splash" role="alert" style={{ display: 'grid', gap: 14, maxWidth: 480 }}>
+        <strong>Could not verify your session</strong>
+        <span>{message}</span>
+        <button className="btn btn-primary" type="button" onClick={() => void retry()}>
+          Retry
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /** Blocks the workspace until the stored session has been verified. */
 function RequireAuth({ children }: { children: ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user, loading, sessionError, refresh } = useAuth();
   const [location] = useLocation();
 
   if (loading) return <Splash label="Restoring your session…" />;
+  if (sessionError) return <SessionRestoreError message={sessionError} retry={refresh} />;
   if (!user) {
     const redirect =
       location && location !== '/'
@@ -40,8 +55,9 @@ function RequireAuth({ children }: { children: ReactNode }) {
 
 /** Keeps signed-in users away from the login/register screens. */
 function RedirectIfSignedIn({ children }: { children: ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user, loading, sessionError, refresh } = useAuth();
   if (loading) return <Splash label="Checking your session…" />;
+  if (sessionError) return <SessionRestoreError message={sessionError} retry={refresh} />;
   if (user) return <Redirect to="/" />;
   return <>{children}</>;
 }
@@ -53,8 +69,9 @@ function RoutedErrorBoundary({ children }: { children: ReactNode }) {
 
 /** Keeps the existing role-specific workspace home at / while showing public content to visitors. */
 function RootPage() {
-  const { user, loading } = useAuth();
+  const { user, loading, sessionError, refresh } = useAuth();
   if (loading) return <Splash label="Restoring your session…" />;
+  if (sessionError) return <SessionRestoreError message={sessionError} retry={refresh} />;
   return user ? <Workspace /> : <LandingPage />;
 }
 

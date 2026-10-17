@@ -44,12 +44,6 @@ export function isForeignKeyViolation(error: unknown): boolean {
   return false;
 }
 
-export function validDate(value: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const parsed = new Date(`${value}T00:00:00.000Z`);
-  return !Number.isNaN(parsed.valueOf()) && parsed.toISOString().slice(0, 10) === value;
-}
-
 export function roundScore(value: number): number {
   return Math.round(value * 10) / 10;
 }
@@ -58,7 +52,7 @@ export function roundScore(value: number): number {
 export function csvCell(value: unknown): string {
   if (value == null) return "";
   let text = String(value);
-  if (/^[=+\-@\t\r]/.test(text)) text = `'${text}`;
+  if (/^[\u0000-\u0020\uFEFF]*[=+\-@]/.test(text)) text = `'${text}`;
   if (/["\n\r,]/.test(text)) text = `"${text.replaceAll('"', '""')}"`;
   return text;
 }

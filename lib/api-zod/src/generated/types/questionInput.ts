@@ -8,10 +8,17 @@
 import type { QuestionType } from './questionType';
 
 export interface QuestionInput {
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @pattern \S
+     */
   prompt: string;
   type: QuestionType;
   required: boolean;
   position: number;
+  /**
+     * @items.minLength 1
+     * @items.pattern \S
+     */
   options: string[];
 }

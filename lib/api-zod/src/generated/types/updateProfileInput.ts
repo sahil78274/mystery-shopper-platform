@@ -7,7 +7,10 @@
  */
 
 export interface UpdateProfileInput {
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @pattern \S
+     */
   fullName?: string;
   email?: string;
 }

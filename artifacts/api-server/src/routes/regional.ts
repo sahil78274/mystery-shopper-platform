@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, ilike, lte } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike, lte, ne, sql } from "drizzle-orm";
 import { Router, type IRouter, type Response } from "express";
 import {
   ExportRegionalDataQueryParams,
@@ -17,7 +17,10 @@ import {
   tasksTable,
   SCORED_SUBMISSION_STATUS,
 } from "@workspace/db";
-import { regionScopeFor, requireRoleOrAdmin, type AuthUser } from "../lib/auth";
+import { regionScopeFor, requireAssignedRegion, requireRoleOrAdmin, type AuthUser } from "../lib/auth";
+import { validDateRange } from "../lib/validation";
+import { buildTrendPoints, filterTrendByDateRange } from "../lib/trends";
+import { canViewSubmissionStatus } from "../lib/workflow";
 import { calendarDate, csvRow, iso, roundScore } from "../lib/platform";
 import { countEvidence, scopeConditions, toSubmissionSummary } from "../lib/submissions";
 
@@ -51,7 +54,9 @@ type Scorecard = {
 async function approvedSubmissions(user: AuthUser) {
   const conditions = [eq(submissionsTable.status, SCORED_SUBMISSION_STATUS)];
   const region = regionScopeFor(user);
-  if (region) conditions.push(eq(storesTable.region, region));
+  if (user.role === "regional_executive") {
+    conditions.push(region ? eq(storesTable.region, region) : sql`false`);
+  }
   return db
     .select({
       id: submissionsTable.id,
@@ -72,7 +77,9 @@ async function buildScorecards(
 ): Promise<Scorecard[]> {
   const storeConditions = [];
   const region = regionScopeFor(user);
-  if (region) storeConditions.push(eq(storesTable.region, region));
+  if (user.role === "regional_executive") {
+    storeConditions.push(region ? eq(storesTable.region, region) : sql`false`);
+  }
   if (search) storeConditions.push(ilike(storesTable.name, `%${search}%`));
   const stores = await db
     .select()
@@ -119,41 +126,8 @@ async function buildScorecards(
   });
 }
 
-function monthKey(date: Date): string {
-  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
-}
-
-function lastMonths(count: number): string[] {
-  const keys: string[] = [];
-  const now = new Date();
-  for (let index = count - 1; index >= 0; index -= 1) {
-    const date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - index, 1));
-    keys.push(monthKey(date));
-  }
-  return keys;
-}
-
-async function buildTrend(
-  user: AuthUser,
-  months: number,
-) {
-  const reports = await approvedSubmissions(user);
-  const buckets = new Map<string, number[]>();
-  for (const report of reports) {
-    if (!report.submittedAt || report.score == null) continue;
-    const key = monthKey(report.submittedAt);
-    buckets.set(key, [...(buckets.get(key) ?? []), report.score]);
-  }
-  return lastMonths(months).map((month) => {
-    const values = buckets.get(month) ?? [];
-    return {
-      month,
-      reports: values.length,
-      averageScore: values.length
-        ? roundScore(values.reduce((sum, value) => sum + value, 0) / values.length)
-        : null,
-    };
-  });
+async function buildTrend(user: AuthUser, months: number) {
+  return buildTrendPoints(await approvedSubmissions(user), months);
 }
 
 async function networkAverage(): Promise<number | null> {
@@ -171,7 +145,9 @@ async function networkAverage(): Promise<number | null> {
 // explicit request for another region is rejected instead of silently ignored.
 function foreignRegion(user: AuthUser, requested: unknown): boolean {
   const scope = regionScopeFor(user);
-  if (!scope || typeof requested !== "string" || !requested.trim()) return false;
+  if (user.role !== "regional_executive") return false;
+  if (!scope) return true;
+  if (typeof requested !== "string" || !requested.trim()) return false;
   return requested.trim().toLowerCase() !== scope.toLowerCase();
 }
 
@@ -179,7 +155,7 @@ function regionForbidden(res: Response): void {
   res.status(403).json({ error: "You can only access data for your own region." });
 }
 
-router.get("/regional/overview", requireRoleOrAdmin("regional_executive"), async (req, res): Promise<void> => {
+router.get("/regional/overview", requireRoleOrAdmin("regional_executive"), requireAssignedRegion, async (req, res): Promise<void> => {
   const user = req.authUser!;
   if (foreignRegion(user, req.query.region)) {
     regionForbidden(res);
@@ -217,7 +193,7 @@ router.get("/regional/overview", requireRoleOrAdmin("regional_executive"), async
   );
 });
 
-router.get("/regional/scorecards", requireRoleOrAdmin("regional_executive"), async (req, res): Promise<void> => {
+router.get("/regional/scorecards", requireRoleOrAdmin("regional_executive"), requireAssignedRegion, async (req, res): Promise<void> => {
   const parsed = GetRegionalScorecardsQueryParams.safeParse(req.query);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -231,7 +207,7 @@ router.get("/regional/scorecards", requireRoleOrAdmin("regional_executive"), asy
   res.json(GetRegionalScorecardsResponse.parse(rows));
 });
 
-router.get("/regional/comparison", requireRoleOrAdmin("regional_executive"), async (req, res): Promise<void> => {
+router.get("/regional/comparison", requireRoleOrAdmin("regional_executive"), requireAssignedRegion, async (req, res): Promise<void> => {
   const user = req.authUser!;
   if (foreignRegion(user, req.query.region)) {
     regionForbidden(res);
@@ -258,7 +234,7 @@ router.get("/regional/comparison", requireRoleOrAdmin("regional_executive"), asy
   );
 });
 
-router.get("/regional/trends", requireRoleOrAdmin("regional_executive"), async (req, res): Promise<void> => {
+router.get("/regional/trends", requireRoleOrAdmin("regional_executive"), requireAssignedRegion, async (req, res): Promise<void> => {
   const parsed = GetRegionalTrendsQueryParams.safeParse(req.query);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -272,7 +248,7 @@ router.get("/regional/trends", requireRoleOrAdmin("regional_executive"), async (
   res.json(GetRegionalTrendsResponse.parse(await buildTrend(req.authUser!, months)));
 });
 
-router.get("/regional/export", requireRoleOrAdmin("regional_executive"), async (req, res): Promise<void> => {
+router.get("/regional/export", requireRoleOrAdmin("regional_executive"), requireAssignedRegion, async (req, res): Promise<void> => {
   const parsed = ExportRegionalDataQueryParams.safeParse(req.query);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -283,7 +259,11 @@ router.get("/regional/export", requireRoleOrAdmin("regional_executive"), async (
     regionForbidden(res);
     return;
   }
-  const { dataset, from, to } = parsed.data;
+  const { dataset, from, to, months } = parsed.data;
+  if (!validDateRange(from ?? undefined, to ?? undefined)) {
+    res.status(400).json({ error: "Invalid date range." });
+    return;
+  }
   const rows: string[] = [];
 
   if (dataset === "scorecards") {
@@ -321,9 +301,9 @@ router.get("/regional/export", requireRoleOrAdmin("regional_executive"), async (
       );
     }
   } else if (dataset === "trends") {
-    const trend = await buildTrend(user, 12);
+    const trend = await buildTrend(user, months ?? 12);
     rows.push(csvRow(["Month", "Approved reports", "Average score"]));
-    for (const point of trend) {
+    for (const point of filterTrendByDateRange(trend, from ?? undefined, to ?? undefined)) {
       rows.push(csvRow([point.month, point.reports, point.averageScore ?? ""]));
     }
   } else {
@@ -391,6 +371,9 @@ async function listRegionalReports(
   options: { limit?: number } = {},
 ) {
   const conditions = scopeConditions(user);
+  if (!canViewSubmissionStatus(user.role, "draft")) {
+    conditions.push(ne(submissionsTable.status, "draft"));
+  }
   const rows = await db
     .select({
       submission: submissionsTable,

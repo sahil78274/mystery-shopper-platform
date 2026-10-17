@@ -5,8 +5,8 @@
  * Mystery shopper management API
  * OpenAPI spec version: 0.1.0
  */
+import type { TaskAdminStatus } from './taskAdminStatus';
 import type { TaskPriority } from './taskPriority';
-import type { TaskStatus } from './taskStatus';
 
 export interface TaskInput {
   storeId: number;
@@ -14,9 +14,15 @@ export interface TaskInput {
   shopperId?: number | null;
   /** @nullable */
   questionnaireId?: number | null;
-  visitDate: Date;
-  dueDate: Date;
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
+  visitDate: string;
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
+  dueDate: string;
+  /**
+     * @minLength 1
+     * @pattern \S
+     */
   instructions: string;
   priority: TaskPriority;
-  status: TaskStatus;
+  status: TaskAdminStatus;
 }

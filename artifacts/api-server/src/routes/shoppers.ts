@@ -20,7 +20,9 @@ import {
   shoppersTable,
   verificationDecisionsTable,
 } from "@workspace/db";
-import { requireAuth, requireRole } from "../lib/auth";
+import { normalizeEmail, requireAuth, requireRole, shopperEmailTaken } from "../lib/auth";
+import { canAccessShopperDirectory, canAccessShopperProfile } from "../lib/workflow";
+import { normalizeTextFields } from "../lib/validation";
 import { iso, isUniqueViolation, recordActivity } from "../lib/platform";
 
 const router: IRouter = Router();
@@ -42,6 +44,10 @@ router.get("/shoppers", requireAuth, async (req, res): Promise<void> => {
     return;
   }
   const user = req.authUser!;
+  if (!canAccessShopperDirectory(user.role)) {
+    res.status(403).json({ error: "You do not have access to shopper profiles." });
+    return;
+  }
   const { search, verificationStatus, accountStatus } = parsed.data;
   const conditions = [];
   // Shoppers may only ever see their own profile record.
@@ -77,7 +83,7 @@ router.get("/shoppers", requireAuth, async (req, res): Promise<void> => {
 });
 
 router.post("/shoppers", requireRole("admin"), async (req, res): Promise<void> => {
-  const parsed = CreateShopperBody.safeParse(req.body);
+  const parsed = CreateShopperBody.safeParse(normalizeTextFields(req.body, ["fullName", "email", "phone", "city"]));
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
@@ -87,11 +93,19 @@ router.post("/shoppers", requireRole("admin"), async (req, res): Promise<void> =
     accountStatus: _requestedAccountStatus,
     ...profile
   } = parsed.data;
+  const normalizedProfile = {
+    ...profile,
+    email: normalizeEmail(profile.email),
+  };
+  if (await shopperEmailTaken(normalizedProfile.email)) {
+    res.status(409).json({ error: "A shopper with this email already exists." });
+    return;
+  }
   try {
     const [row] = await db
       .insert(shoppersTable)
       .values({
-        ...profile,
+        ...normalizedProfile,
         verificationStatus: "pending",
         accountStatus: "active",
       })
@@ -119,6 +133,13 @@ router.get("/shoppers/:shopperId", requireAuth, async (req, res): Promise<void> 
     res.status(400).json({ error: params.error.message });
     return;
   }
+  const user = req.authUser!;
+  if (!canAccessShopperProfile(user.role, user.shopperId, params.data.shopperId)) {
+    res.status(user.role === "mystery_shopper" ? 404 : 403).json({
+      error: user.role === "mystery_shopper" ? "Shopper not found." : "You do not have access to shopper profiles.",
+    });
+    return;
+  }
   const [row] = await db
     .select()
     .from(shoppersTable)
@@ -127,17 +148,12 @@ router.get("/shoppers/:shopperId", requireAuth, async (req, res): Promise<void> 
     res.status(404).json({ error: "Shopper not found." });
     return;
   }
-  const user = req.authUser!;
-  if (user.role === "mystery_shopper" && row.id !== user.shopperId) {
-    res.status(404).json({ error: "Shopper not found." });
-    return;
-  }
   res.json(GetShopperResponse.parse(toShopper(row)));
 });
 
 router.patch("/shoppers/:shopperId", requireRole("admin"), async (req, res): Promise<void> => {
   const params = UpdateShopperParams.safeParse(req.params);
-  const parsed = UpdateShopperBody.safeParse(req.body);
+  const parsed = UpdateShopperBody.safeParse(normalizeTextFields(req.body, ["fullName", "email", "phone", "city"]));
   if (!params.success || !parsed.success) {
     res.status(400).json({
       error: !params.success
@@ -146,10 +162,18 @@ router.patch("/shoppers/:shopperId", requireRole("admin"), async (req, res): Pro
     });
     return;
   }
+  const updates = { ...parsed.data };
+  if (updates.email !== undefined) {
+    updates.email = normalizeEmail(updates.email);
+    if (await shopperEmailTaken(updates.email, params.data.shopperId)) {
+      res.status(409).json({ error: "A shopper with this email already exists." });
+      return;
+    }
+  }
   try {
     const [row] = await db
       .update(shoppersTable)
-      .set(parsed.data)
+      .set(updates)
       .where(eq(shoppersTable.id, params.data.shopperId))
       .returning();
     if (!row) {

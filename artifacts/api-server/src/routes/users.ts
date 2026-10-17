@@ -1,4 +1,4 @@
-import { and, desc, eq, ilike, or } from "drizzle-orm";
+import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { Router, type IRouter } from "express";
 import {
   CreateUserBody,
@@ -13,14 +13,15 @@ import {
 } from "@workspace/api-zod";
 import { db, shoppersTable, usersTable } from "@workspace/db";
 import {
-  countActiveAdmins,
+  emailTaken,
   hashPassword,
   normalizeEmail,
   requireRole,
   revokeOtherSessions,
 } from "../lib/auth";
+import { normalizeTextFields } from "../lib/validation";
+import { canKeepActiveAdmin } from "../lib/workflow";
 import { iso, isUniqueViolation, recordActivity } from "../lib/platform";
-import { emailTaken } from "./auth";
 
 const router: IRouter = Router();
 
@@ -73,7 +74,7 @@ router.get("/users", requireRole("admin"), async (req, res): Promise<void> => {
 });
 
 router.post("/users", requireRole("admin"), async (req, res): Promise<void> => {
-  const parsed = CreateUserBody.safeParse(req.body);
+  const parsed = CreateUserBody.safeParse(normalizeTextFields(req.body, ["fullName", "email", "region"]));
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
@@ -122,61 +123,82 @@ router.post("/users", requireRole("admin"), async (req, res): Promise<void> => {
 
 router.patch("/users/:userId", requireRole("admin"), async (req, res): Promise<void> => {
   const params = UpdateUserParams.safeParse(req.params);
-  const parsed = UpdateUserBody.safeParse(req.body);
+  const parsed = UpdateUserBody.safeParse(normalizeTextFields(req.body, ["fullName", "email", "region"]));
   if (!params.success || !parsed.success) {
     res.status(400).json({
       error: !params.success ? params.error.message : parsed.error?.message ?? "Invalid account data.",
     });
     return;
   }
-  const [current] = await db.select().from(usersTable).where(eq(usersTable.id, params.data.userId));
-  if (!current) {
-    res.status(404).json({ error: "Account not found." });
-    return;
-  }
   const input = parsed.data;
-  const nextRole = input.role ?? current.role;
-  const nextStatus = input.accountStatus ?? current.accountStatus;
-  const nextRegion =
-    input.region !== undefined
-      ? input.region?.trim() || null
-      : current.region;
-
-  if (nextRole === "regional_executive" && !nextRegion) {
-    res.status(400).json({ error: "A regional brand executive must be assigned to a region." });
-    return;
-  }
-  if (current.role === "admin" && nextRole !== "admin" && (await countActiveAdmins(current.id)) === 0) {
-    res.status(400).json({ error: "At least one active administrator must remain." });
-    return;
-  }
-  if (current.role === "admin" && nextStatus !== "active" && (await countActiveAdmins(current.id)) === 0) {
-    res.status(400).json({ error: "At least one active administrator must remain." });
-    return;
-  }
-  if (input.email && (await emailTaken(input.email, current.id))) {
+  if (input.email && (await emailTaken(input.email, params.data.userId))) {
     res.status(409).json({ error: "That email is already used by another account." });
     return;
   }
-
-  const updates: Partial<typeof usersTable.$inferInsert> = {
-    ...(input.fullName !== undefined ? { fullName: input.fullName.trim() } : {}),
-    ...(input.email !== undefined ? { email: normalizeEmail(input.email) } : {}),
-    ...(input.role !== undefined ? { role: nextRole } : {}),
-    ...(input.accountStatus !== undefined ? { accountStatus: nextStatus } : {}),
-    ...(input.region !== undefined || input.role !== undefined
-      ? { region: nextRole === "regional_executive" ? nextRegion : null }
-      : {}),
-    ...(input.password ? { passwordHash: await hashPassword(input.password) } : {}),
-  };
+  const passwordHash = input.password ? await hashPassword(input.password) : undefined;
 
   try {
-    const [row] = await db
-      .update(usersTable)
-      .set(updates)
-      .where(eq(usersTable.id, current.id))
-      .returning();
-    if (input.password || nextStatus !== "active") {
+    const result = await db.transaction(async (tx) => {
+      // Serialize role/status changes so concurrent updates cannot remove every active admin.
+      await tx.execute(sql`select pg_advisory_xact_lock(147540201, 1)`);
+      const [current] = await tx
+        .select()
+        .from(usersTable)
+        .where(eq(usersTable.id, params.data.userId))
+        .for("update");
+      if (!current) return { ok: false as const, status: 404, message: "Account not found." };
+
+      const nextRole = input.role ?? current.role;
+      const nextStatus = input.accountStatus ?? current.accountStatus;
+      const nextRegion =
+        input.region !== undefined
+          ? input.region?.trim() || null
+          : current.region;
+      if (nextRole === "regional_executive" && !nextRegion) {
+        return {
+          ok: false as const,
+          status: 400,
+          message: "A regional brand executive must be assigned to a region.",
+        };
+      }
+
+      const activeAdmins = await tx
+        .select({ id: usersTable.id })
+        .from(usersTable)
+        .where(and(eq(usersTable.role, "admin"), eq(usersTable.accountStatus, "active")));
+      const otherActiveAdminCount = activeAdmins.filter((admin) => admin.id !== current.id).length;
+      if (!canKeepActiveAdmin(current.role, nextRole, nextStatus, otherActiveAdminCount)) {
+        return {
+          ok: false as const,
+          status: 400,
+          message: "At least one active administrator must remain.",
+        };
+      }
+
+      const updates: Partial<typeof usersTable.$inferInsert> = {
+        ...(input.fullName !== undefined ? { fullName: input.fullName.trim() } : {}),
+        ...(input.email !== undefined ? { email: normalizeEmail(input.email) } : {}),
+        ...(input.role !== undefined ? { role: nextRole } : {}),
+        ...(input.accountStatus !== undefined ? { accountStatus: nextStatus } : {}),
+        ...(input.region !== undefined || input.role !== undefined
+          ? { region: nextRole === "regional_executive" ? nextRegion : null }
+          : {}),
+        ...(passwordHash ? { passwordHash } : {}),
+      };
+      const [row] = await tx
+        .update(usersTable)
+        .set(updates)
+        .where(eq(usersTable.id, current.id))
+        .returning();
+      return { ok: true as const, row, nextStatus };
+    });
+
+    if (!result.ok) {
+      res.status(result.status).json({ error: result.message });
+      return;
+    }
+    const { row, nextStatus } = result;
+    if (passwordHash || nextStatus !== "active") {
       await revokeOtherSessions(row.id);
     }
     await recordActivity(
@@ -206,21 +228,39 @@ router.delete("/users/:userId", requireRole("admin"), async (req, res): Promise<
     res.status(400).json({ error: params.error.message });
     return;
   }
-  const [current] = await db.select().from(usersTable).where(eq(usersTable.id, params.data.userId));
-  if (!current) {
-    res.status(404).json({ error: "Account not found." });
+  const result = await db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(147540201, 1)`);
+    const [current] = await tx
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.id, params.data.userId))
+      .for("update");
+    if (!current) return { ok: false as const, status: 404, message: "Account not found." };
+
+    const activeAdmins = await tx
+      .select({ id: usersTable.id })
+      .from(usersTable)
+      .where(and(eq(usersTable.role, "admin"), eq(usersTable.accountStatus, "active")));
+    const otherActiveAdminCount = activeAdmins.filter((admin) => admin.id !== current.id).length;
+    if (!canKeepActiveAdmin(current.role, "deleted", "deleted", otherActiveAdminCount)) {
+      return {
+        ok: false as const,
+        status: 400,
+        message: "The last active administrator cannot be deleted.",
+      };
+    }
+    await tx.delete(usersTable).where(eq(usersTable.id, current.id));
+    return { ok: true as const, current };
+  });
+  if (!result.ok) {
+    res.status(result.status).json({ error: result.message });
     return;
   }
-  if (current.role === "admin" && (await countActiveAdmins(current.id)) === 0) {
-    res.status(400).json({ error: "The last active administrator cannot be deleted." });
-    return;
-  }
-  await db.delete(usersTable).where(eq(usersTable.id, current.id));
   await recordActivity(
     "deleted",
     "user",
-    current.id,
-    `Deleted account for ${current.fullName}`,
+    result.current.id,
+    `Deleted account for ${result.current.fullName}`,
     req.authUser!.id,
   );
   res.status(204).send(DeleteUserResponse.parse(undefined));

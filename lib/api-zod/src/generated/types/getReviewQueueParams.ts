@@ -5,9 +5,9 @@
  * Mystery shopper management API
  * OpenAPI spec version: 0.1.0
  */
-import type { SubmissionStatus } from './submissionStatus';
+import type { GetReviewQueueStatus } from './getReviewQueueStatus';
 
 export type GetReviewQueueParams = {
 search?: string;
-status?: SubmissionStatus;
+status?: GetReviewQueueStatus;
 };

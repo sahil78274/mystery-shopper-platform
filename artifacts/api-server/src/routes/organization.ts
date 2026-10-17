@@ -11,7 +11,8 @@ import {
   ORGANIZATION_SETTINGS_ID,
   DEFAULT_ORGANIZATION_NAME,
 } from "@workspace/db";
-import { requireAuth, requireRole } from "../lib/auth";
+import { normalizeEmail, requireAuth, requireRole } from "../lib/auth";
+import { normalizeTextFields } from "../lib/validation";
 import { iso, recordActivity } from "../lib/platform";
 
 const router: IRouter = Router();
@@ -56,7 +57,13 @@ router.get("/organization", requireAuth, async (_req, res): Promise<void> => {
 });
 
 router.put("/organization", requireRole("admin"), async (req, res): Promise<void> => {
-  const parsed = UpdateOrganizationBody.safeParse(req.body);
+  const parsed = UpdateOrganizationBody.safeParse(
+    normalizeTextFields(
+      req.body,
+      ["name", "contactEmail", "phone", "address", "website"],
+      ["contactEmail", "phone", "address", "website"],
+    ),
+  );
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
@@ -64,7 +71,7 @@ router.put("/organization", requireRole("admin"), async (req, res): Promise<void
   const input = parsed.data;
   const cleaned = {
     name: input.name.trim(),
-    contactEmail: input.contactEmail?.trim() || null,
+    contactEmail: input.contactEmail ? normalizeEmail(input.contactEmail) : null,
     phone: input.phone?.trim() || null,
     address: input.address?.trim() || null,
     website: input.website?.trim() || null,

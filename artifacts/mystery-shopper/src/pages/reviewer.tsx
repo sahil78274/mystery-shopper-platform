@@ -22,7 +22,7 @@ import {
   useGetReviewQueue,
   useGetSubmission,
 } from '@workspace/api-client-react';
-import type { SubmissionSummary } from '@workspace/api-client-react';
+import type { GetReviewHistoryParams, GetReviewQueueParams, SubmissionSummary } from '@workspace/api-client-react';
 import {
   DetailItem,
   Modal,
@@ -34,16 +34,7 @@ import {
   useNotify,
 } from '@/components/common';
 import { formatDate, formatDateTime, formatScore } from '@/lib/format';
-
-function downloadEvidence(url: string, fileName: string) {
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = fileName;
-  link.rel = 'noopener';
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-}
+import { EvidenceCard } from '@/components/evidence';
 
 function ReviewModal({
   submissionId,
@@ -181,20 +172,12 @@ function ReviewModal({
             {submission.evidence.length ? (
               <div className="evidence-grid">
                 {submission.evidence.map((item) => (
-                  <figure className="evidence-card" key={item.id}>
-                    <img src={item.url} alt={item.fileName} loading="lazy" />
-                    <figcaption>
-                      <strong>{item.fileName}</strong>
-                      <span>{Math.max(1, Math.round(item.byteSize / 1024))} KB</span>
-                      <button
-                        type="button"
-                        className="btn btn-sm"
-                        onClick={() => downloadEvidence(item.url, item.fileName)}
-                      >
-                        Download
-                      </button>
-                    </figcaption>
-                  </figure>
+                  <EvidenceCard
+                    key={item.id}
+                    submissionId={submission.id}
+                    item={item}
+                    showDownload
+                  />
                 ))}
               </div>
             ) : (
@@ -413,13 +396,30 @@ function ReviewerDashboard() {
 }
 
 function QueueTable({ history }: { history: boolean }) {
-  const query = history
-    ? useGetReviewHistory({})
-    : useGetReviewQueue({});
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
   const [selected, setSelected] = useState<number | null>(null);
   const { message, notify } = useNotify();
+  const invalidRange = Boolean(from && to && from > to);
+  const historyParams: GetReviewHistoryParams = {
+    ...(search.trim() ? { search: search.trim() } : {}),
+    ...(status ? { status: status as GetReviewHistoryParams['status'] } : {}),
+    ...(from ? { from } : {}),
+    ...(to ? { to } : {}),
+  };
+  const queueParams: GetReviewQueueParams = {
+    ...(search.trim() ? { search: search.trim() } : {}),
+    ...(status ? { status: status as GetReviewQueueParams['status'] } : {}),
+  };
+  const historyQuery = useGetReviewHistory(historyParams, {
+    query: { queryKey: getGetReviewHistoryQueryKey(historyParams), enabled: history && !invalidRange },
+  });
+  const queueQuery = useGetReviewQueue(queueParams, {
+    query: { queryKey: getGetReviewQueueQueryKey(queueParams), enabled: !history },
+  });
+  const query = history ? historyQuery : queueQuery;
 
   const rows = useMemo(() => {
     const all = (query.data ?? []) as SubmissionSummary[];
@@ -474,8 +474,27 @@ function QueueTable({ history }: { history: boolean }) {
               </option>
             ))}
           </select>
+          {history ? (
+            <>
+              <div className="date-filter">
+                <span>Reviewed from</span>
+                <input aria-label="Reviewed from date" type="date" value={from} onChange={(event) => setFrom(event.target.value)} />
+              </div>
+              <div className="date-filter">
+                <span>to</span>
+                <input aria-label="Reviewed to date" type="date" value={to} onChange={(event) => setTo(event.target.value)} />
+              </div>
+            </>
+          ) : null}
         </div>
-        {query.isLoading ? (
+        {invalidRange ? (
+          <p className="field-error" role="alert" style={{ marginTop: 12 }}>
+            The start date must be on or before the end date.
+          </p>
+        ) : null}
+        {invalidRange ? (
+          <StateBlock empty title="No reports match" description="Correct the reviewed-date range to view history." />
+        ) : query.isLoading ? (
           <StateBlock loading />
         ) : query.isError ? (
           <StateBlock error onRetry={() => query.refetch()} />

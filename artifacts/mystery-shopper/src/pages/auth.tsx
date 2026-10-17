@@ -4,6 +4,7 @@ import { CircleAlert, LogIn, ShieldCheck, UserPlus } from 'lucide-react';
 import { RicozBrand } from '@/components/brand';
 import { useAuth } from '@/lib/auth';
 import { messageOf } from '@/components/common';
+import { safeNextPath } from '@/lib/safe-next';
 
 function AuthShell({
   title,
@@ -65,7 +66,7 @@ export function LoginPage() {
         email: String(values.get('email') ?? '').trim(),
         password: String(values.get('password') ?? ''),
       });
-      navigate(next && next.startsWith('/') ? next : '/');
+      navigate(safeNextPath(next, window.location.origin));
     } catch (reason) {
       setError(messageOf(reason));
     } finally {

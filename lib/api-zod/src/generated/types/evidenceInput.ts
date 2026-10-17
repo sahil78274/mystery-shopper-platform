@@ -7,11 +7,20 @@
  */
 
 export interface EvidenceInput {
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @pattern \S
+     */
   fileName: string;
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @pattern \S
+     */
   mimeType: string;
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @pattern \S
+     */
   data: string;
   /** @nullable */
   caption?: string | null;

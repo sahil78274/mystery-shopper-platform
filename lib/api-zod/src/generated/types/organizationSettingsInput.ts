@@ -7,7 +7,10 @@
  */
 
 export interface OrganizationSettingsInput {
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @pattern \S
+     */
   name: string;
   /** @nullable */
   contactEmail?: string | null;

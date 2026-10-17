@@ -16,8 +16,11 @@ export interface StoreScorecard {
   visits: number;
   /** @nullable */
   averageScore: number | null;
-  /** @nullable */
-  lastVisitDate: Date | null;
+  /**
+     * @nullable
+     * @pattern ^\d{4}-\d{2}-\d{2}$
+     */
+  lastVisitDate: string | null;
   /** @nullable */
   lastScore: number | null;
   /** @nullable */

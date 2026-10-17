@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { Router, type IRouter } from "express";
 import {
   ChangePasswordBody,
@@ -15,19 +15,28 @@ import {
 import { db, shoppersTable, usersTable } from "@workspace/db";
 import {
   createSession,
+  emailTaken,
   hashPassword,
+  isUserRole,
   normalizeEmail,
   PASSWORD_MIN_LENGTH,
   purgeExpiredSessions,
   revokeOtherSessions,
   revokeSession,
   requireAuth,
+  shopperEmailTaken,
   verifyPassword,
   type AuthUser,
 } from "../lib/auth";
+import { normalizeTextFields } from "../lib/validation";
+import { rateLimitByIp } from "../lib/rate-limit";
 import { isUniqueViolation, iso, recordActivity } from "../lib/platform";
+import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
+const loginRateLimit = rateLimitByIp(10, 15 * 60 * 1000, "Too many sign-in attempts. Try again in 15 minutes.");
+const registrationRateLimit = rateLimitByIp(5, 60 * 60 * 1000, "Too many registration attempts. Try again later.");
+const passwordRateLimit = rateLimitByIp(10, 15 * 60 * 1000, "Too many password-change attempts. Try again later.");
 
 // Placeholder hash compared against when an email does not exist so that a
 // missing account and a wrong password take a comparable amount of time.
@@ -49,11 +58,7 @@ function toAuthUser(
     id: user.id,
     fullName: user.fullName,
     email: user.email,
-    role: (["admin", "mystery_shopper", "reviewer", "regional_executive"] as const).includes(
-      user.role as never,
-    )
-      ? (user.role as AuthUser["role"])
-      : "mystery_shopper",
+    role: user.role as AuthUser["role"],
     accountStatus: user.accountStatus,
     region: user.region ?? null,
     shopperId,
@@ -74,17 +79,22 @@ async function loadAccount(userId: number) {
     .from(usersTable)
     .leftJoin(shoppersTable, eq(shoppersTable.userId, usersTable.id))
     .where(eq(usersTable.id, userId));
-  return row ?? null;
+  return row && isUserRole(row.user.role) ? row : null;
 }
 
-router.post("/auth/register", async (req, res): Promise<void> => {
-  const parsed = RegisterShopperBody.safeParse(req.body);
+router.post("/auth/register", registrationRateLimit, async (req, res): Promise<void> => {
+  const normalizedBody = normalizeTextFields(req.body, ["fullName", "email", "phone", "city"]);
+  const parsed = RegisterShopperBody.safeParse(normalizedBody);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
   const input = parsed.data;
   const email = normalizeEmail(input.email);
+  if ((await emailTaken(email)) || (await shopperEmailTaken(email))) {
+    res.status(409).json({ error: "An account with this email already exists." });
+    return;
+  }
   const passwordHash = await hashPassword(input.password);
 
   try {
@@ -145,8 +155,8 @@ router.post("/auth/register", async (req, res): Promise<void> => {
   }
 });
 
-router.post("/auth/login", async (req, res): Promise<void> => {
-  const parsed = LoginBody.safeParse(req.body);
+router.post("/auth/login", loginRateLimit, async (req, res): Promise<void> => {
+  const parsed = LoginBody.safeParse(normalizeTextFields(req.body, ["email"]));
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
@@ -159,13 +169,14 @@ router.post("/auth/login", async (req, res): Promise<void> => {
     })
     .from(usersTable)
     .leftJoin(shoppersTable, eq(shoppersTable.userId, usersTable.id))
-    .where(eq(usersTable.email, normalizeEmail(parsed.data.email)));
+    .where(sql`lower(${usersTable.email}) = ${normalizeEmail(parsed.data.email)}`)
+    .limit(1);
 
   const valid = row
     ? await verifyPassword(parsed.data.password, row.user.passwordHash)
     : await verifyPassword(parsed.data.password, await DUMMY_HASH_PROMISE).then(() => false);
 
-  if (!row || !valid) {
+  if (!row || !valid || !isUserRole(row.user.role)) {
     res.status(401).json({ error: "Email or password is incorrect." });
     return;
   }
@@ -180,7 +191,9 @@ router.post("/auth/login", async (req, res): Promise<void> => {
     .where(eq(usersTable.id, row.user.id))
     .returning();
   const session = await createSession(row.user.id);
-  void purgeExpiredSessions();
+  void purgeExpiredSessions().catch((error) => {
+    logger.warn({ err: error }, "Failed to purge expired sessions");
+  });
   res.json(
     LoginResponse.parse({
       token: session.token,
@@ -209,7 +222,7 @@ router.get("/auth/me", requireAuth, async (req, res): Promise<void> => {
 });
 
 router.patch("/auth/me", requireAuth, async (req, res): Promise<void> => {
-  const parsed = UpdateAuthProfileBody.safeParse(req.body);
+  const parsed = UpdateAuthProfileBody.safeParse(normalizeTextFields(req.body, ["fullName", "email"]));
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
@@ -229,6 +242,10 @@ router.patch("/auth/me", requireAuth, async (req, res): Promise<void> => {
   }
   if (!Object.keys(updates).length) {
     res.status(400).json({ error: "Nothing to update." });
+    return;
+  }
+  if (updates.email && (await emailTaken(updates.email, user.id))) {
+    res.status(409).json({ error: "That email is already used by another account." });
     return;
   }
 
@@ -270,7 +287,7 @@ router.patch("/auth/me", requireAuth, async (req, res): Promise<void> => {
   }
 });
 
-router.post("/auth/password", requireAuth, async (req, res): Promise<void> => {
+router.post("/auth/password", requireAuth, passwordRateLimit, async (req, res): Promise<void> => {
   const parsed = ChangePasswordBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -307,14 +324,5 @@ router.post("/auth/password", requireAuth, async (req, res): Promise<void> => {
     }),
   );
 });
-
-/** True when another account already uses this email address. */
-export async function emailTaken(email: string, exceptUserId?: number): Promise<boolean> {
-  const [match] = await db
-    .select({ id: usersTable.id })
-    .from(usersTable)
-    .where(eq(usersTable.email, normalizeEmail(email)));
-  return Boolean(match && match.id !== exceptUserId);
-}
 
 export default router;
