@@ -2,7 +2,7 @@ import nodemailer, { type SendMailOptions, type Transporter } from "nodemailer";
 
 export type ZeptoMailConfig = {
   host: string;
-  port: 587;
+  port: 465 | 587;
   user: string;
   password: string;
   fromEmail: string;
@@ -13,8 +13,8 @@ export type ZeptoMailConfig = {
 type SmtpTransportOptions = {
   host: string;
   port: number;
-  secure: false;
-  requireTLS: true;
+  secure: boolean;
+  requireTLS?: boolean;
   auth: { user: string; pass: string };
   connectionTimeout: number;
   greetingTimeout: number;
@@ -59,7 +59,7 @@ export function readZeptoMailConfig(env: NodeJS.ProcessEnv = process.env): Zepto
   const host = requiredValue(env, "ZEPTOMAIL_SMTP_HOST");
   const rawPort = requiredValue(env, "ZEPTOMAIL_SMTP_PORT");
   const port = Number(rawPort);
-  if (!Number.isInteger(port) || port !== 587) throw new ZeptoMailError("configuration");
+  if (!Number.isInteger(port) || (port !== 587 && port !== 465)) throw new ZeptoMailError("configuration");
 
   const user = requiredValue(env, "ZEPTOMAIL_SMTP_USER");
   const password = env["ZEPTOMAIL_SMTP_PASSWORD"];
@@ -76,29 +76,30 @@ export function readZeptoMailConfig(env: NodeJS.ProcessEnv = process.env): Zepto
     throw new ZeptoMailError("configuration");
   }
 
-  return { host, port: 587, user, password, fromEmail, fromName, contactTo };
+  return { host, port: port as 465 | 587, user, password, fromEmail, fromName, contactTo };
 }
 
 /**
  * Create an isolated service instance so tests can supply an in-memory transport.
- * TLS is always upgraded with STARTTLS on port 587; implicit TLS is not used.
+ * Port 587 uses STARTTLS (secure:false + requireTLS:true); port 465 uses implicit TLS (secure:true).
  */
 export function createZeptoMailService(
   env: NodeJS.ProcessEnv = process.env,
   transportFactory: TransportFactory = (options) => nodemailer.createTransport(options),
 ) {
   const config = readZeptoMailConfig(env);
+  const isImplicitTls = config.port === 465;
   const transport = transportFactory({
     host: config.host,
     port: config.port,
-    secure: false,
-    requireTLS: true,
+    secure: isImplicitTls,
+    ...(isImplicitTls ? {} : { requireTLS: true }),
     auth: { user: config.user, pass: config.password },
     connectionTimeout: 10_000,
     greetingTimeout: 10_000,
     socketTimeout: 15_000,
     tls: { minVersion: "TLSv1.2" },
-  });
+  } as SmtpTransportOptions);
 
   return {
     config,
