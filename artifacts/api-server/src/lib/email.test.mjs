@@ -42,13 +42,41 @@ test('validates ZeptoMail settings and configures port 587 with mandatory STARTT
   assert.equal(sentMessage.to, 'shopper@example.com');
 });
 
+test('validates port 465 with implicit TLS', async () => {
+  const env465 = { ...env, ZEPTOMAIL_SMTP_PORT: '465' };
+  assert.deepEqual(readZeptoMailConfig(env465), {
+    host: 'smtp.zeptomail.in',
+    port: 465,
+    user: 'emailapikey',
+    password: testPassword,
+    fromEmail: 'care@ricoz.in',
+    fromName: 'Ricoz Innovation',
+    contactTo: 'care@ricoz.in',
+  });
+
+  let transportOptions;
+  const service = createZeptoMailService(env465, (options) => {
+    transportOptions = options;
+    return { sendMail: async () => ({}) };
+  });
+  await service.send({ to: 'shopper@example.com', subject: 'Test', text: 'Hello', html: '<p>Hello</p>' });
+
+  assert.equal(transportOptions.port, 465);
+  assert.equal(transportOptions.secure, true);
+  assert.equal(transportOptions.requireTLS, undefined);
+});
+
 test('rejects missing secrets and invalid SMTP port without returning credential values', () => {
   assert.throws(
     () => readZeptoMailConfig({ ...env, ZEPTOMAIL_SMTP_PASSWORD: '' }),
     (error) => error instanceof ZeptoMailError && error.code === 'configuration' && !error.message.includes(testPassword),
   );
   assert.throws(
-    () => readZeptoMailConfig({ ...env, ZEPTOMAIL_SMTP_PORT: '465' }),
+    () => readZeptoMailConfig({ ...env, ZEPTOMAIL_SMTP_PORT: '2525' }),
+    (error) => error instanceof ZeptoMailError && error.code === 'configuration',
+  );
+  assert.throws(
+    () => readZeptoMailConfig({ ...env, ZEPTOMAIL_SMTP_PORT: '25' }),
     (error) => error instanceof ZeptoMailError && error.code === 'configuration',
   );
   assert.throws(

@@ -1,0 +1,66 @@
+# Render Blueprint — Ricoz Mystery Shopper Platform
+# This file declares both the frontend Static Site and the backend Web Service
+# for automated deploys. If the services were created manually in the dashboard,
+# this file only takes effect after connecting the repo as a Blueprint.
+# In that case, add the rewrite rule manually: Dashboard → Frontend Service →
+# Settings → Redirects/Rewrites → Add Rule → Source: /*  Destination: /index.html  Action: Rewrite
+services:
+  # ── Frontend: React + Vite — Static Site ──────────────────────────────
+  - type: web
+    name: mystery-shopper-frontend
+    runtime: static
+    buildCommand: pnpm --filter @workspace/mystery-shopper run build
+    staticPublishPath: artifacts/mystery-shopper/dist/public
+    # SPA fallback: every non-file route serves index.html so Wouter can handle
+    # /login, /forgot-password, /reset-password, /register and workspace routes.
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    headers:
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+    envVars:
+      # Build-time: tells the frontend where the live API lives.
+      # Must match the backend service's public URL.
+      - key: VITE_API_BASE_URL
+        value: https://mystery-shopper-api.onrender.com
+      - key: NODE_ENV
+        value: production
+
+  # ── Backend: Express API — Web Service ────────────────────────────────
+  - type: web
+    name: mystery-shopper-api
+    runtime: node
+    buildCommand: pnpm --filter @workspace/api-server run build
+    startCommand: node --enable-source-maps artifacts/api-server/dist/index.mjs
+    healthCheckPath: /api/healthz
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Render injects PORT automatically; explicit 10000 is the default for Node.
+      # Keep in sync with artifact.toml (8080) or let Render override via dashboard.
+      - key: PUBLIC_APP_URL
+        value: https://mystery-shopper-frontend1.onrender.com
+      - key: ZEPTOMAIL_SMTP_HOST
+        value: smtp.zeptomail.in
+      - key: ZEPTOMAIL_SMTP_PORT
+        value: 587
+      - key: ZEPTOMAIL_SMTP_USER
+        value: emailapikey
+      - key: ZEPTOMAIL_FROM_EMAIL
+        value: care@ricoz.in
+      - key: ZEPTOMAIL_FROM_NAME
+        value: Ricoz Innovation
+      - key: ZEPTOMAIL_CONTACT_TO
+        value: care@ricoz.in
+      # Secrets — set as “secret” in dashboard / do NOT commit plaintext:
+      # - DATABASE_URL
+      # - ZEPTOMAIL_SMTP_PASSWORD

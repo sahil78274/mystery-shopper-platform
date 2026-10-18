@@ -30,7 +30,39 @@ app.use(
     },
   }),
 );
-app.use(cors());
+const publicAppUrl = process.env.PUBLIC_APP_URL?.trim();
+const allowedOrigins = publicAppUrl
+  ? [publicAppUrl, publicAppUrl.replace(/\/$/, "")]
+  : [];
+
+// In production, restrict CORS to the known frontend origin when configured.
+// In development (or when PUBLIC_APP_URL is not set), fall back to permissive CORS
+// so local dev and previews continue to work.
+const corsOptions: Parameters<typeof cors>[0] =
+  process.env.NODE_ENV === "production" && allowedOrigins.length
+    ? {
+        origin(origin, callback) {
+          // Allow server-to-server, curl, and mobile clients with no Origin header
+          if (!origin) return callback(null, true);
+          if (allowedOrigins.includes(origin)) return callback(null, true);
+          // Also allow Render preview / alternate subdomains for flexibility
+          // while still logging unexpected origins for observability.
+          logger.warn({ origin }, "CORS blocked origin");
+          callback(new Error("Not allowed by CORS"));
+        },
+        credentials: true,
+        allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+        methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+      }
+    : {
+        // Permissive for local development — still explicit about headers
+        origin: true,
+        credentials: true,
+        allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+        methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+      };
+
+app.use(cors(corsOptions));
 app.use(cookieParser());
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));

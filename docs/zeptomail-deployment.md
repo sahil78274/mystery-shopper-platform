@@ -1,6 +1,6 @@
 # ZeptoMail SMTP deployment and verification
 
-Ricoz mail is sent only by the API server through Nodemailer. The browser receives neither SMTP configuration nor credentials. Port **587** is configured with `secure: false` and mandatory STARTTLS (`requireTLS: true`).
+Ricoz mail is sent only by the API server through Nodemailer. The browser receives neither SMTP configuration nor credentials. Port **587** is configured with `secure: false` and mandatory STARTTLS (`requireTLS: true`); port **465** uses implicit TLS (`secure: true`). Both are supported — use 465 when a firewall or corporate proxy blocks STARTTLS, otherwise prefer 587.
 
 ## Before production
 
@@ -19,7 +19,7 @@ Render could not be configured through the available workspace integration. An a
    | Variable | Value |
    | --- | --- |
    | `ZEPTOMAIL_SMTP_HOST` | `smtp.zeptomail.in` |
-   | `ZEPTOMAIL_SMTP_PORT` | `587` |
+   | `ZEPTOMAIL_SMTP_PORT` | `587` (or `465` for implicit TLS) |
    | `ZEPTOMAIL_SMTP_USER` | `emailapikey` |
    | `ZEPTOMAIL_SMTP_PASSWORD` | Store the rotated password using Render's protected/secret environment-variable UI. Never put it in a client build or source file. |
    | `ZEPTOMAIL_FROM_EMAIL` | `care@ricoz.in` |
@@ -35,7 +35,7 @@ Render could not be configured through the available workspace integration. An a
 
 Copy `artifacts/api-server/.env.example` to `artifacts/api-server/.env` and set local `DATABASE_URL` / `PUBLIC_APP_URL`. The API loads this package-local `.env` with `dotenv/config`; the file is ignored by Git. The SMTP password remains blank in the example and is optional for booting, but actual delivery requires the separately supplied secret. Without working SMTP, contact requests return a safe delivery error; password-recovery requests retain the same generic response to avoid account discovery.
 
-Mocked SMTP tests do not contact ZeptoMail. They validate configuration, STARTTLS options, and sanitized transport failure handling.
+Mocked SMTP tests do not contact ZeptoMail. They validate configuration, STARTTLS vs implicit-TLS options, and sanitized transport failure handling. For Render Blueprint-based deploys, `render.yaml` already declares the frontend SPA rewrite (`/* → /index.html`) and build env `VITE_API_BASE_URL`. See `docs/RENDER_DEPLOYMENT.md` for full audit findings and manual fallback steps.
 
 ## Mail behavior and operations
 

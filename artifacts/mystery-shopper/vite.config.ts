@@ -1,3 +1,4 @@
+import fs from 'fs';
 import path from 'path';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
@@ -20,6 +21,23 @@ const basePath = process.env.BASE_PATH ?? '/';
 export default defineConfig({
   base: basePath,
   plugins: [
+    {
+      name: 'ricoz-spa-fallback-duplicates',
+      closeBundle() {
+        const outDir = path.resolve(import.meta.dirname, 'dist/public');
+        const indexPath = path.join(outDir, 'index.html');
+        if (!fs.existsSync(indexPath)) return;
+        // Hosts like Cloudflare Pages / Netlify / GitHub Pages read 200.html or 404.html as fallback
+        for (const name of ['200.html', '404.html']) {
+          const dup = path.join(outDir, name);
+          try {
+            if (!fs.existsSync(dup)) fs.copyFileSync(indexPath, dup);
+          } catch {
+            // Non-fatal: Render uses routes in render.yaml as primary SPA fallback
+          }
+        }
+      },
+    },
     react(),
     tailwindcss(),
     runtimeErrorOverlay(),
@@ -50,6 +68,7 @@ export default defineConfig({
     dedupe: ['react', 'react-dom'],
   },
   root: path.resolve(import.meta.dirname),
+  publicDir: path.resolve(import.meta.dirname, 'public'),
   build: {
     outDir: path.resolve(import.meta.dirname, 'dist/public'),
     emptyOutDir: true,
