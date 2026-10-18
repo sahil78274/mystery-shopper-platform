@@ -29,11 +29,12 @@ export type EmailMessage = Omit<SendMailOptions, "from"> & {
   subject: string;
   text: string;
   html: string;
+  replyTo?: string;
 };
 
 export type EmailFailureCode = "configuration" | "delivery";
 
-/** Safe, deliberately detail-free SMTP errors for API responses and logs. */
+/** Safe, deliberately detail-free SMTP/API errors for logs and API responses. */
 export class ZeptoMailError extends Error {
   readonly code: EmailFailureCode;
 
@@ -103,13 +104,14 @@ export function createZeptoMailService(
 
   return {
     config,
+    provider: "zeptomail" as const,
     async send(message: EmailMessage): Promise<void> {
       try {
         await transport.sendMail({
           ...message,
           from: { name: config.fromName, address: config.fromEmail },
         });
-            } catch (error) {
+      } catch (error) {
         const err = error as {
           code?: string;
           responseCode?: number;
@@ -137,4 +139,3 @@ export function getZeptoMailService() {
 }
 
 export type EmailCategory = "contact" | "account" | "assignment" | "review" | "security";
-

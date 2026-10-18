@@ -150,7 +150,10 @@ export function ForgotPasswordPage() {
       {sent ? (
         <div className="auth-form" role="status">
           <p className="auth-note">
-            If an account with that email exists, a password reset link has been sent. Check your inbox and spam folder.
+            If an account with that email exists, a password reset link has been sent. Check your inbox and spam folder. The link expires in 30 minutes and can be used only once.
+          </p>
+          <p className="auth-note">
+            If you requested multiple links, only the most recent one is valid — earlier links are automatically replaced.
           </p>
           <Link href="/login">Return to sign in</Link>
         </div>
@@ -175,25 +178,70 @@ export function ForgotPasswordPage() {
   );
 }
 
+function extractResetToken(): string {
+  // Priority: hash fragment (security — not sent to server logs) → query param (email client fallback) → sessionStorage (survives hash-clear + soft refresh)
+  try {
+    const hashParams = new URLSearchParams(window.location.hash.slice(1));
+    const fromHash = hashParams.get('token')?.trim();
+    if (fromHash) return fromHash;
+  } catch { /* ignore malformed hash */ }
+
+  try {
+    const queryParams = new URLSearchParams(window.location.search);
+    const fromQuery = queryParams.get('token')?.trim();
+    if (fromQuery) return fromQuery;
+  } catch { /* ignore */ }
+
+  // Survive page refresh after hash was cleared by useEffect
+  try {
+    const stored = window.sessionStorage.getItem('ricoz.reset-token');
+    if (stored?.trim()) return stored.trim();
+  } catch { /* storage unavailable */ }
+
+  return '';
+}
+
 export function ResetPasswordPage() {
-  const [token] = useState(() => new URLSearchParams(window.location.hash.slice(1)).get('token') ?? '');
+  const [token, setToken] = useState(() => extractResetToken());
   const { clearSession } = useAuth();
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (token && window.location.hash) {
-      // Keep the reset secret out of the address bar/history after capturing it.
-      window.history.replaceState(window.history.state, document.title, `${window.location.pathname}${window.location.search}`);
+    const captured = extractResetToken();
+    if (captured) {
+      setToken(captured);
+      try {
+        // Persist for soft refresh; cleared on success or explicit navigation away
+        window.sessionStorage.setItem('ricoz.reset-token', captured);
+      } catch { /* ignore */ }
+      // Remove token from address bar/history without triggering reload — keep only pathname+search
+      if (window.location.hash || new URLSearchParams(window.location.search).has('token')) {
+        const url = new URL(window.location.href);
+        url.hash = '';
+        // Keep search intact except for token param — strip only token to preserve other params
+        if (url.searchParams.has('token')) {
+          url.searchParams.delete('token');
+        }
+        window.history.replaceState(window.history.state, document.title, `${url.pathname}${url.search}`);
+      }
     }
-  }, [token]);
+  }, []);
+
+  // Clear stored token once reset succeeds or user leaves the page via success UI
+  useEffect(() => {
+    if (done) {
+      try { window.sessionStorage.removeItem('ricoz.reset-token'); } catch { /* ignore */ }
+    }
+  }, [done]);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError('');
-    if (!token) {
-      setError('This reset link is missing or invalid. Request a new one.');
+    const effectiveToken = token.trim();
+    if (!effectiveToken) {
+      setError('This reset link is missing or invalid. Request a new one — links expire after 30 minutes, can be used only once, and are replaced when you request another.');
       return;
     }
     const values = new FormData(event.currentTarget);
@@ -207,13 +255,24 @@ export function ResetPasswordPage() {
       setError('Choose a password with at least one non-space character.');
       return;
     }
+    if (newPassword.length < 8) {
+      setError('Use at least 8 characters for the new password.');
+      return;
+    }
     setBusy(true);
     try {
-      await resetPassword({ token, newPassword });
+      await resetPassword({ token: effectiveToken, newPassword });
+      try { window.sessionStorage.removeItem('ricoz.reset-token'); } catch { /* ignore */ }
       clearSession();
       setDone(true);
     } catch (reason) {
-      setError(messageOf(reason));
+      const msg = messageOf(reason);
+      // Surface backend "invalid or expired" with extra guidance
+      if (/invalid or has expired/i.test(msg)) {
+        setError(`${msg} Links expire after 30 minutes, can be used only once, and are replaced by newer requests. Request a new link and use the most recent email.`);
+      } else {
+        setError(msg);
+      }
     } finally {
       setBusy(false);
     }
@@ -222,7 +281,7 @@ export function ResetPasswordPage() {
   return (
     <AuthShell
       title={done ? 'Password reset complete' : 'Choose a new password'}
-      subtitle={done ? 'Your password has been updated and other sessions have been signed out.' : 'Use a new password with at least 8 characters.'}
+      subtitle={done ? 'Your password has been updated and other sessions have been signed out.' : 'Use a new password with at least 8 characters. The link expires in 30 minutes and works only once.'}
       footer={
         done ? <Link href="/login">Sign in with your new password</Link> : <>Need another link? <Link href="/forgot-password">Request a reset</Link></>
       }
@@ -235,7 +294,7 @@ export function ResetPasswordPage() {
         <form onSubmit={submit} className="auth-form">
           {!token && (
             <p className="field-error" role="alert">
-              <CircleAlert size={13} /> This reset link is missing or invalid. Request a new one.
+              <CircleAlert size={13} /> This reset link is missing or invalid. It may have expired, already been used, or been replaced by a newer request. Request a new one and use the latest email.
             </p>
           )}
           <label className="form-field">
@@ -256,6 +315,7 @@ export function ResetPasswordPage() {
             <KeyRound size={15} />
             {busy ? 'Updating password…' : 'Reset password'}
           </button>
+          <p className="auth-note">If the link has expired or was already used, request a new one — only the most recent link is valid.</p>
         </form>
       )}
     </AuthShell>

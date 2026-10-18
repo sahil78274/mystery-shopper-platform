@@ -5,15 +5,6 @@ import { logger } from "./lib/logger";
 
 function diagnosticForMissingEnv(): void {
   const required = ["DATABASE_URL", "PUBLIC_APP_URL"];
-  const smtpVars = [
-    "ZEPTOMAIL_SMTP_HOST",
-    "ZEPTOMAIL_SMTP_PORT",
-    "ZEPTOMAIL_SMTP_USER",
-    "ZEPTOMAIL_SMTP_PASSWORD",
-    "ZEPTOMAIL_FROM_EMAIL",
-    "ZEPTOMAIL_FROM_NAME",
-    "ZEPTOMAIL_CONTACT_TO",
-  ];
   const missing = required.filter((key) => !process.env[key]?.trim());
   if (missing.length) {
     logger.warn(
@@ -21,18 +12,57 @@ function diagnosticForMissingEnv(): void {
       "Missing required environment variables — some features will not work until they are set",
     );
   }
-  const missingSmtp = smtpVars.filter((key) => !process.env[key]?.trim());
-  if (missingSmtp.length) {
-    logger.warn(
-      { missing: missingSmtp },
-      "ZeptoMail SMTP is not fully configured — email delivery is disabled until all SMTP variables are set",
-    );
-  } else {
-    const port = Number(process.env.ZEPTOMAIL_SMTP_PORT);
-    if (![465, 587].includes(port)) {
-      logger.warn({ ZEPTOMAIL_SMTP_PORT: process.env.ZEPTOMAIL_SMTP_PORT }, "ZEPTOMAIL_SMTP_PORT must be 465 or 587");
+
+  const hasBrevo = Boolean(process.env["BREVO_API_KEY"]?.trim());
+  const hasZeptoHost = Boolean(process.env["ZEPTOMAIL_SMTP_HOST"]?.trim());
+
+  if (hasBrevo) {
+    // Brevo HTTPS API is preferred on Render Free (SMTP ports are blocked)
+    const brevoRequired = ["BREVO_API_KEY", "ZEPTOMAIL_FROM_EMAIL", "ZEPTOMAIL_FROM_NAME", "ZEPTOMAIL_CONTACT_TO"];
+    const missingBrevo = brevoRequired.filter((k) => !process.env[k]?.trim());
+    if (missingBrevo.length) {
+      logger.warn(
+        { missing: missingBrevo },
+        "Brevo is selected (BREVO_API_KEY present) but sender configuration is incomplete — email delivery is disabled",
+      );
+    } else {
+      logger.info({ provider: "brevo" }, "Email provider: Brevo HTTPS API");
     }
+    if (hasZeptoHost) {
+      logger.info("Both BREVO_API_KEY and ZEPTOMAIL_SMTP_HOST are set — Brevo will be used; ZeptoMail is idle");
+    }
+  } else if (hasZeptoHost) {
+    const smtpVars = [
+      "ZEPTOMAIL_SMTP_HOST",
+      "ZEPTOMAIL_SMTP_PORT",
+      "ZEPTOMAIL_SMTP_USER",
+      "ZEPTOMAIL_SMTP_PASSWORD",
+      "ZEPTOMAIL_FROM_EMAIL",
+      "ZEPTOMAIL_FROM_NAME",
+      "ZEPTOMAIL_CONTACT_TO",
+    ];
+    const missingSmtp = smtpVars.filter((key) => !process.env[key]?.trim());
+    if (missingSmtp.length) {
+      logger.warn(
+        { missing: missingSmtp },
+        "ZeptoMail SMTP is not fully configured — email delivery is disabled until all SMTP variables are set",
+      );
+    } else {
+      const port = Number(process.env.ZEPTOMAIL_SMTP_PORT);
+      if (![465, 587].includes(port)) {
+        logger.warn({ ZEPTOMAIL_SMTP_PORT: process.env.ZEPTOMAIL_SMTP_PORT }, "ZEPTOMAIL_SMTP_PORT must be 465 or 587");
+      }
+      logger.info({ provider: "zeptomail", port }, "Email provider: ZeptoMail SMTP");
+      if (process.env["NODE_ENV"] === "production") {
+        logger.warn(
+          "ZeptoMail SMTP uses outbound ports 465/587 which are blocked on Render Free — consider switching to Brevo HTTPS (BREVO_API_KEY) for reliable delivery",
+        );
+      }
+    }
+  } else {
+    logger.warn("No email provider configured — set BREVO_API_KEY (preferred) or ZEPTOMAIL_* variables to enable email delivery");
   }
+
   if (process.env.PUBLIC_APP_URL) {
     try {
       const u = new URL(process.env.PUBLIC_APP_URL);
@@ -42,6 +72,11 @@ function diagnosticForMissingEnv(): void {
     } catch {
       logger.warn("PUBLIC_APP_URL is not a valid URL");
     }
+  }
+
+  const viteUrl = process.env["VITE_API_BASE_URL"];
+  if (viteUrl) {
+    logger.warn("VITE_API_BASE_URL is a frontend build-time variable and has no effect on the backend — remove from backend service");
   }
 }
 

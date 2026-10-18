@@ -226,7 +226,12 @@ router.post("/auth/reset-password", resetPasswordRateLimit, async (req, res): Pr
     return;
   }
 
-  const tokenHash = hashPasswordResetToken(parsed.data.token);
+  const rawToken = parsed.data.token.trim();
+  if (!rawToken) {
+    res.status(400).json({ error: "This password reset link is invalid or has expired." });
+    return;
+  }
+  const tokenHash = hashPasswordResetToken(rawToken);
   const account = await db.transaction(async (tx) => {
     const [candidate] = await tx
       .select()

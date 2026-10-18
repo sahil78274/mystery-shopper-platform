@@ -7,7 +7,7 @@ import {
   shopperVerificationTemplate,
   taskAssignmentTemplate,
 } from "./email-templates";
-import { getZeptoMailService, ZeptoMailError } from "./email";
+import { getEmailService, ZeptoMailError } from "./email-service";
 import { sendEmailSafely } from "./email-delivery";
 import { passwordResetUrl } from "./password-reset";
 
@@ -112,7 +112,7 @@ export function sendContactEnquiry(input: {
 }): Promise<boolean> {
   return sendEmailSafely(() => {
     const rendered = contactEnquiryTemplate(input);
-    const recipient = getZeptoMailService().config.contactTo;
+    const recipient = getEmailService().config.contactTo;
     return {
       ...message(recipient, "New Ricoz website enquiry", rendered),
       replyTo: input.email,

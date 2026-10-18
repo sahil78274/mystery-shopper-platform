@@ -7,7 +7,7 @@
 services:
   # ── Frontend: React + Vite — Static Site ──────────────────────────────
   - type: web
-    name: mystery-shopper-frontend
+    name: mystery-shopper-frontend1
     runtime: static
     buildCommand: pnpm --filter @workspace/mystery-shopper run build
     staticPublishPath: artifacts/mystery-shopper/dist/public
@@ -45,10 +45,16 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      # Render injects PORT automatically; explicit 10000 is the default for Node.
-      # Keep in sync with artifact.toml (8080) or let Render override via dashboard.
+      # Render injects PORT automatically; keep 8080 in sync with artifact.toml
       - key: PUBLIC_APP_URL
         value: https://mystery-shopper-frontend1.onrender.com
+      # --- Email: choose ONE provider ---
+      # Option A (recommended for Render Free): Brevo HTTPS API — no SMTP ports needed
+      # Set BREVO_API_KEY as a secret in dashboard; keep ZEPTOMAIL_FROM_* for sender identity
+      # - key: BREVO_API_KEY   (set as secret, value: xkeysib-...)
+
+      # Option B (legacy): ZeptoMail SMTP — blocked on Render Free (ETIMEDOUT)
+      # Only works on paid Render or non-Render hosts where 465/587 is open
       - key: ZEPTOMAIL_SMTP_HOST
         value: smtp.zeptomail.in
       - key: ZEPTOMAIL_SMTP_PORT
@@ -64,3 +70,4 @@ services:
       # Secrets — set as “secret” in dashboard / do NOT commit plaintext:
       # - DATABASE_URL
       # - ZEPTOMAIL_SMTP_PASSWORD
+      # - BREVO_API_KEY
