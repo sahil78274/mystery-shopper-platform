@@ -15,7 +15,22 @@ const DEFAULT_JSON_ACCEPT = "application/json, application/problem+json";
 // Module-level configuration
 // ---------------------------------------------------------------------------
 let _baseUrl: string | null =
-  import.meta.env.VITE_API_BASE_URL || null;
+  (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_API_BASE_URL || null;
+
+// Production diagnostic: warn once if API base URL is missing while frontend runs on a remote host
+let _warnedMissingBaseUrl = false;
+function warnIfMissingBaseUrl(requestUrl: string): void {
+  if (_warnedMissingBaseUrl || _baseUrl) return;
+  if (!requestUrl.startsWith("/")) return;
+  if (typeof window === "undefined") return;
+  const host = window.location.hostname;
+  if (host === "localhost" || host === "127.0.0.1" || host === "::1") return;
+  _warnedMissingBaseUrl = true;
+  console.warn(
+    `[api-client] VITE_API_BASE_URL is not configured — ${requestUrl} will be requested from ${window.location.origin} instead of the API server and will 404 on Render static hosting. ` +
+      `Set VITE_API_BASE_URL=https://mystery-shopper-api.onrender.com in render.yaml and redeploy the frontend.`,
+  );
+}
 
 let _authTokenGetter: AuthTokenGetter | null = null;
 
@@ -62,7 +77,10 @@ function isUrl(input: RequestInfo | URL): input is URL {
 }
 
 function applyBaseUrl(input: RequestInfo | URL): RequestInfo | URL {
-  if (!_baseUrl) return input;
+  if (!_baseUrl) {
+    warnIfMissingBaseUrl(resolveUrl(input));
+    return input;
+  }
   const url = resolveUrl(input);
   // Only prepend to relative paths (starting with /)
   if (!url.startsWith("/")) return input;

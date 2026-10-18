@@ -18,6 +18,16 @@ if (Number.isNaN(port) || port <= 0) {
 
 const basePath = process.env.BASE_PATH ?? '/';
 
+// Warn when building for production without an API endpoint — requests would
+// fall back to same-origin /api and fail on Render's separate static+API sites.
+if (process.env.NODE_ENV === 'production' && !process.env.VITE_API_BASE_URL?.trim()) {
+  console.warn(
+    '[vite] WARNING: VITE_API_BASE_URL is not set while NODE_ENV=production. ' +
+    'Frontend will use relative /api requests which will 404 on Render static hosting. ' +
+    'Set VITE_API_BASE_URL=https://mystery-shopper-api.onrender.com in render.yaml / Render dashboard.',
+  );
+}
+
 export default defineConfig({
   base: basePath,
   plugins: [
